@@ -2,8 +2,6 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 
-static volatile uint8_t led_state = 1;
-
 
 /**
  *  ARDUINO BLINK EXAMPLE
@@ -16,6 +14,8 @@ static volatile uint8_t led_state = 1;
  *      tasks.
  *  -- Use of the AVR built in sleep mode minimises power use when there's
  *      nothing for the CPU to do.
+ *  -- Compiled binary takes up minimal flash memory; about 260 bytes compared to
+ *      1050 bytes for the Arduino blink sketch.
  */
 int main (void) {
     // Set port B pin 5 to output mode (this is the same pin as Arduino D13)
@@ -23,7 +23,7 @@ int main (void) {
     DDRB |= 0x20;
     PORTB = 0x20;
 
-    // setup timer 1, TCCR1B register to bits: x x x x x 1 0 0
+    // setup timer 1 to use the /256 prescaler, TCCR1B register bits: x x x x x 1 0 0
     // By using the /256 prescaler, there are 62,500 ticks per second (16 million / 256).
     // One interrupt per 2^16 ticks, or approx 1.05 seconds.
     TCCR1B = (TCCR1B & 0xF8) | 0x04;
@@ -49,11 +49,7 @@ int main (void) {
  *  HIGH if it was LOW.
  */
 ISR(TIMER1_OVF_vect) {
-    if (led_state == 1) {
-        PORTB = 0x00;
-        led_state = 0;
-    } else {
-        PORTB = 0x20;
-        led_state = 1;
-    }
+    PORTB = ~PORTB & 0x20;
 }
+
+// vim: ts=4 sw=4 et
