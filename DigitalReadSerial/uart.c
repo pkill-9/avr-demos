@@ -25,7 +25,7 @@ struct buffer receive_queue;
 void init_uart (int baud_rate) {
     // disabling interrupts is required during initialisation for interrupt
     // driven UART operation.
-    cli();
+    cli ();
 
     // The baud rate is 12 bits, split across two 8 bit registers. We have
     // to write the high bits first, because updating the low bit register
@@ -43,7 +43,7 @@ void init_uart (int baud_rate) {
     // No need to change other bits in that register.
 
     // enable interrupts now that configuration is done.
-    sti();
+    sei ();
 }
 
 /********************************************************************/
@@ -70,6 +70,7 @@ void transmit_byte (char byte) {
  *  buffer.
  */
 char receive_byte (void) {
+    return '0';
 }
 
 /********************************************************************/
@@ -82,7 +83,7 @@ char receive_byte (void) {
  *  byte from our transmit buffer into the data register, or if there is no
  *  more data to be transmitted, disable the UDRE interrupt.
  */
-ISR(USART_UDRE_vect) {
+ISR (USART_UDRE_vect) {
 }
 
 /********************************************************************/
@@ -95,7 +96,7 @@ ISR(USART_UDRE_vect) {
  *  if all is good transfer the received byte from the data register to our
  *  receive buffer.
  */
-ISR(USART_RX_vect) {
+ISR (USART_RX_vect) {
 }
 
 /********************************************************************/

@@ -85,7 +85,7 @@ PROJECTNAME=digital_read_serial
 # (list all files to compile, e.g. 'a.c b.cpp as.S'):
 # Use .cc, .cpp or .C suffix for C++ files, use .S 
 # (NOT .s !!!) for assembly source code files.
-PRJSRC=
+PRJSRC=uart.c
 
 # additional includes (e.g. -I/path/to/mydir)
 INC=
@@ -209,7 +209,7 @@ GENASMFILES=$(filter %.s, $(OBJDEPS:.o=.s))
 	.hex .ee.hex .h .hh .hpp
 
 
-.PHONY: writeflash clean stats gdbinit stats
+.PHONY: writeflash clean stats gdbinit disasm hex
 
 # Make targets:
 # all, disasm, stats, hex, writeflash/install, clean
