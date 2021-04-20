@@ -10,6 +10,7 @@
 void uart_init (int baud_rate);
 void transmit_byte (char byte);
 char receive_byte (void);
+void transmit_string (const char *message);
 
 #endif // _UART_H
 
