@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <string.h>
 
 #include "uart.h"
 
@@ -7,6 +8,7 @@
 
 struct buffer {
     char data [BUFFER_LENGTH];
+    int data_length;
     int head_pos;
     int tail_pos;
 };
@@ -42,6 +44,15 @@ void init_uart (int baud_rate) {
     // The reset value for UCSR0C is set to 8 bit frames, which we will use.
     // No need to change other bits in that register.
 
+    // Initialise the head and tail positions for the tx and rx queues, and
+    // make sure their lengths are zero to begin with.
+    transmit_queue.head_pos = 0;
+    transmit_queue.tail_pos = 0;
+    transmit_queue.data_length = 0;
+    receive_queue.head_pos = 0;
+    receive_queue.tail_pos = 0;
+    receive_queue.data_length = 0;
+
     // enable interrupts now that configuration is done.
     sei ();
 }
@@ -58,6 +69,46 @@ void init_uart (int baud_rate) {
  *  enable the UDRE interrupt.
  */
 void transmit_byte (char byte) {
+}
+
+/********************************************************************/
+
+/**
+ *  Copies a message into the transmit queue, and begins the process of
+ *  sending it via the USART hardware.
+ *
+ *  If there is insufficient space in the transmit buffer, then this function
+ *  will transmit as many bytes as it can.
+ *
+ *  Return value is the number of bytes copied to the transmit queue.
+ */
+size_t transmit_string (const char *message) {
+    size_t message_length = strlen (message);
+
+    // check if the message length is greater than the available space in the
+    // buffer.
+    if (message_length > BUFFER_LENGTH - transmit_queue.data_length) {
+        message_length = BUFFER_LENGTH - transmit_queue.data_length;
+    }
+
+    // iterate through the bytes to copy into the buffer. We will copy them
+    // into the slot pointed to by the tail index and increment the tail index.
+    // Once the tail index reaches the end of the buffer, it wraps around to
+    // the start.
+    for (int i = 0; i < message_length; i ++) {
+        transmit_queue.data [transmit_queue.tail_pos] = message [i];
+        transmit_queue.tail_pos ++;
+        transmit_queue.tail_pos %= BUFFER_LENGTH;
+    }
+
+    // update the transmit queue length
+    transmit_queue.data_length += message_length;
+
+    // enable the UDRE interrupt by setting bit 5 in the UCSR0B register,
+    // since it would be disabled if transmission isn't in progress.
+    UCSR0B |= 0x20;
+
+    return message_length;
 }
 
 /********************************************************************/
@@ -84,6 +135,23 @@ char receive_byte (void) {
  *  more data to be transmitted, disable the UDRE interrupt.
  */
 ISR (USART_UDRE_vect) {
+    // Check if there's data available in the transmit queue.
+    if (transmit_queue.data_length > 0) {
+        // Copy the next byte from the transmit queue buffer into the USART
+        // data register.
+        UDR0 = transmit_queue.data [transmit_queue.head_pos];
+
+        // Advance the position of the transmit queue head to the next byte
+        // in the buffer (wrapping around if it passes the end).
+        transmit_queue.head_pos ++;
+        transmit_queue.head_pos %= BUFFER_LENGTH;
+
+        // update the data length, now there's one less byte in the queue.
+        transmit_queue.data_length --;
+    } else {
+        // nothing to transmit, so disable the UDRE interrupt.
+        UCSR0B &= ~0x20;
+    }
 }
 
 /********************************************************************/
