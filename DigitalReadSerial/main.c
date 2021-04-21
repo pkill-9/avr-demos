@@ -64,11 +64,11 @@ ISR (PCINT2_vect) {
     if ((PIND & 0x10) != 0) {
         // button is pressed
         PORTB |= 0x20;
-        transmit_string ("button pressed\n");
+        transmit_string ("button pressed\r\n");
     } else {
         // button has been released.
-        PORTB &= ~0x20;
-        transmit_string ("button released\n");
+        //PORTB &= ~0x20;
+        transmit_string ("button released\r\n");
     }
 }
 
