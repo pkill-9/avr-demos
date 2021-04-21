@@ -61,9 +61,7 @@ int main (void) {
  *  via the USART hardware.
  */
 ISR (PCINT2_vect) {
-    const char *message;
-
-    if (PIND & 0x10 != 0) {
+    if ((PIND & 0x10) != 0) {
         // button is pressed
         PORTB |= 0x20;
         transmit_string ("button pressed\n");

@@ -24,7 +24,7 @@ struct buffer receive_queue;
  *  This consists of setting the baud rate, frame format, and enabling the
  *  transmitter/receiver.
  */
-void init_uart (int baud_rate) {
+void uart_init (int baud_rate) {
     // disabling interrupts is required during initialisation for interrupt
     // driven UART operation.
     cli ();
