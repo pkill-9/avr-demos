@@ -26,7 +26,7 @@
  */
 int main (void) {
     // initialise the USART hardware.
-    uart_init (103);
+    uart_init (9600);
 
     // We have the signal from the push button going to pin 4 on the 328P,
     // which corresponds to PCINT18 / port D pin 2.

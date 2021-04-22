@@ -68,6 +68,9 @@
 # options for possible values)
 MCU=atmega328p
 
+# clock speed of the MCU, in Hz
+F_CPU=16000000UL
+
 # id to use with programmer
 # default: PROGRAMMER_MCU=$(MCU)
 # In case the programer used, e.g avrdude, doesn't
@@ -137,7 +140,7 @@ AVRDUDE_PROGRAMMERID=usbtiny
 HEXFORMAT=ihex
 
 # compiler
-CFLAGS=-I. $(INC) -g -mmcu=$(MCU) -O$(OPTLEVEL) -flto \
+CFLAGS=-I. $(INC) -g -mmcu=$(MCU) -O$(OPTLEVEL) -DF_CPU=$(F_CPU) -flto \
 	-fpack-struct -fshort-enums             \
 	-funsigned-bitfields -funsigned-char    \
 	-Wall -Wstrict-prototypes               \

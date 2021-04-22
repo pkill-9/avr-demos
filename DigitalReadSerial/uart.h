@@ -9,7 +9,7 @@
 
 #include <string.h>
 
-void uart_init (int baud_rate);
+void uart_init (unsigned long baud_rate);
 void transmit_byte (char byte);
 char receive_byte (void);
 size_t transmit_string (const char *message);

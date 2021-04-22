@@ -24,16 +24,23 @@ struct buffer receive_queue;
  *  This consists of setting the baud rate, frame format, and enabling the
  *  transmitter/receiver.
  */
-void uart_init (int baud_rate) {
+void uart_init (unsigned long baud_rate) {
     // disabling interrupts is required during initialisation for interrupt
     // driven UART operation.
     cli ();
 
+    // As per the ATmega328P datasheet (section 24.4.1, USART internal clock
+    // generation), the baud rate clock is derived from the system clock via
+    // a prescaling down-counter. Each tick of the system clock, the baud
+    // counter is decremented, and when it reaches 0 it produces a tick of
+    // the baud clock.
+    unsigned long baud_counter = F_CPU / (16 * baud_rate) - 1;
+
     // The baud rate is 12 bits, split across two 8 bit registers. We have
     // to write the high bits first, because updating the low bit register
     // triggers an immediate update of the baud rate prescaler.
-    UBRR0H = (unsigned char) (baud_rate >> 8);
-    UBRR0L = (unsigned char) (baud_rate);
+    UBRR0H = (unsigned char) (baud_counter >> 8);
+    UBRR0L = (unsigned char) (baud_counter);
 
     // USART Control Register B bits:
     // 0 0 0 0 1 0 0 0
