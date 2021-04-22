@@ -28,18 +28,18 @@ int main (void) {
     // initialise the USART hardware.
     uart_init (9600);
 
-    // We have the signal from the push button going to pin 6 on the 328P,
-    // which corresponds to PCINT20 / port D pin 4.
+    // We have the signal from the push button going to pin 4 on the 328P,
+    // which corresponds to PCINT18 / port D pin 2.
     // The pin is set to input on reset.
     // First step is to enable the pin change interrupt in the PC mask
     // register.
-    PCMSK2 |= 0x10;
+    PCMSK2 |= 0x04;
 
     // now we need to enable pin change interrupt 2 (which handles PCINT 16 
     // to 23).
     PCICR |= 0x04;
 
-    // Set port B pin 5 to output, to display the button state.
+    // Set port B pin 2 to output, to display the button state.
     DDRB |= 0x20;
     PORTB = 0x00;
 
@@ -61,7 +61,7 @@ int main (void) {
  *  via the USART hardware.
  */
 ISR (PCINT2_vect) {
-    if ((PIND & 0x10) != 0) {
+    if ((PIND & 0x04) != 0) {
         // button is pressed
         PORTB |= 0x20;
         transmit_string ("button pressed\r\n");
