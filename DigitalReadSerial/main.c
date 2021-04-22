@@ -64,27 +64,11 @@ ISR (PCINT2_vect) {
     if ((PIND & 0x04) != 0) {
         // button is pressed
         PORTB |= 0x20;
-        //transmit_string ("button pressed\r\n");
-
-        // busy-wait until the USART hardware is ready to receive a byte to
-        // send.
-        while ((UCSR0A & 0x20) == 0)
-            ;
-
-        // send a single char
-        UDR0 = '1';
+        transmit_string ("button pressed\r\n");
     } else {
         // button has been released.
         PORTB &= ~0x20;
-        //transmit_string ("button released\r\n");
-
-        // busy-wait until the USART hardware is ready to receive a byte to
-        // send.
-        while ((UCSR0A & 0x20) == 0)
-            ;
-
-        // send a single char
-        UDR0 = '0';
+        transmit_string ("button released\r\n");
     }
 }
 

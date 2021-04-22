@@ -36,13 +36,14 @@ void uart_init (int baud_rate) {
     UBRR0L = (unsigned char) (baud_rate);
 
     // USART Control Register B bits:
-    // 1 0 0 1 1 0 0 0
-    // - enable interrupts for RX complete, and Data Register Empty
-    // - enable the receiver and transmitter.
+    // 0 0 0 0 1 0 0 0
+    // - don't enable interrupts. Only UDRE is used, and it doesn't need to
+    //   be enabled yet.
+    // - enable the transmitter to send data, leave the receiver disabled.
     UCSR0B = 0x08;
 
     // The reset value for UCSR0C is set to 8 bit frames, which we will use.
-    // No need to change other bits in that register.
+    // Set it to send two stop bits.
     UCSR0C |= 0x08;
 
     // Initialise the head and tail positions for the tx and rx queues, and
@@ -70,6 +71,7 @@ void uart_init (int baud_rate) {
  *  enable the UDRE interrupt.
  */
 void transmit_byte (char byte) {
+    // not implemented
 }
 
 /********************************************************************/
@@ -153,7 +155,6 @@ ISR (USART_UDRE_vect) {
     } else {
         // nothing to transmit, so disable the UDRE interrupt.
         UCSR0B &= ~0x20;
-        PORTB &= ~0x20;
     }
 }
 
