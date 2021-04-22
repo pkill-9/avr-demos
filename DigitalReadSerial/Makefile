@@ -309,6 +309,14 @@ clean:
 	$(REMOVE) $(LST) $(GDBINITFILE)
 	$(REMOVE) $(GENASMFILES)
 	$(REMOVE) $(HEXTRG)
+	$(REMOVE) depend
+
+
+#### C header dependencies ####
+depend:		$(CFILES)
+	$(CC) $(CFLAGS) -MM $(CFILES) > depend
+
+include depend
 	
 
 

@@ -1,6 +1,9 @@
 # vim swap files
 *.swp
 
+# dependency files
+depend
+
 # Prerequisites
 *.d
 
