@@ -26,7 +26,7 @@
  */
 int main (void) {
     // initialise the USART hardware.
-    uart_init (9600);
+    uart_init (103);
 
     // We have the signal from the push button going to pin 4 on the 328P,
     // which corresponds to PCINT18 / port D pin 2.
@@ -64,11 +64,27 @@ ISR (PCINT2_vect) {
     if ((PIND & 0x04) != 0) {
         // button is pressed
         PORTB |= 0x20;
-        transmit_string ("button pressed\r\n");
+        //transmit_string ("button pressed\r\n");
+
+        // busy-wait until the USART hardware is ready to receive a byte to
+        // send.
+        while ((UCSR0A & 0x20) == 0)
+            ;
+
+        // send a single char
+        UDR0 = '1';
     } else {
         // button has been released.
-        //PORTB &= ~0x20;
-        transmit_string ("button released\r\n");
+        PORTB &= ~0x20;
+        //transmit_string ("button released\r\n");
+
+        // busy-wait until the USART hardware is ready to receive a byte to
+        // send.
+        while ((UCSR0A & 0x20) == 0)
+            ;
+
+        // send a single char
+        UDR0 = '0';
     }
 }
 
