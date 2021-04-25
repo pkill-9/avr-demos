@@ -24,7 +24,9 @@
  *  As a debugging tool, we will also echo the button state on an LED
  *  attached to port B pin 5.
  */
-int main (void) {
+    int
+main (void)
+{
     // initialise the USART hardware.
     uart_init (9600);
 
@@ -44,7 +46,8 @@ int main (void) {
     PORTB = 0x00;
 
     // now we go into low power state.
-    while (1) {
+    while (1)
+    {
         sei ();
         sleep_mode ();
     }
@@ -60,12 +63,16 @@ int main (void) {
  *  Action taken is to check what the pin state is, and transmit a message
  *  via the USART hardware.
  */
-ISR (PCINT2_vect) {
-    if ((PIND & 0x04) != 0) {
+ISR (PCINT2_vect)
+{
+    if ((PIND & 0x04) != 0)
+    {
         // button is pressed
         PORTB |= 0x20;
         transmit_string ("button pressed\r\n");
-    } else {
+    }
+    else
+    {
         // button has been released.
         PORTB &= ~0x20;
         transmit_string ("button released\r\n");

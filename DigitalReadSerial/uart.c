@@ -6,7 +6,8 @@
 
 #define BUFFER_LENGTH 32
 
-struct buffer {
+struct buffer
+{
     char data [BUFFER_LENGTH];
     int data_length;
     int head_pos;
@@ -24,7 +25,10 @@ struct buffer receive_queue;
  *  This consists of setting the baud rate, frame format, and enabling the
  *  transmitter/receiver.
  */
-void uart_init (unsigned long baud_rate) {
+    void
+uart_init (baud_rate)
+    unsigned long baud_rate;
+{
     // disabling interrupts is required during initialisation for interrupt
     // driven UART operation.
     cli ();
@@ -77,7 +81,10 @@ void uart_init (unsigned long baud_rate) {
  *  If there is no other data in the transmit queue, this function will 
  *  enable the UDRE interrupt.
  */
-void transmit_byte (char byte) {
+    void
+transmit_byte (byte)
+    char byte;
+{
     // not implemented
 }
 
@@ -92,20 +99,23 @@ void transmit_byte (char byte) {
  *
  *  Return value is the number of bytes copied to the transmit queue.
  */
-size_t transmit_string (const char *message) {
+    size_t
+transmit_string (message)
+    const char *message;
+{
     size_t message_length = strlen (message);
 
     // check if the message length is greater than the available space in the
     // buffer.
-    if (message_length > BUFFER_LENGTH - transmit_queue.data_length) {
+    if (message_length > BUFFER_LENGTH - transmit_queue.data_length)
         message_length = BUFFER_LENGTH - transmit_queue.data_length;
-    }
 
     // iterate through the bytes to copy into the buffer. We will copy them
     // into the slot pointed to by the tail index and increment the tail index.
     // Once the tail index reaches the end of the buffer, it wraps around to
     // the start.
-    for (int i = 0; i < message_length; i ++) {
+    for (int i = 0; i < message_length; i ++)
+    {
         transmit_queue.data [transmit_queue.tail_pos] = message [i];
         transmit_queue.tail_pos ++;
         transmit_queue.tail_pos %= BUFFER_LENGTH;
@@ -130,7 +140,9 @@ size_t transmit_string (const char *message) {
  *  put the MCU into a low power mode until data becomes available in the
  *  buffer.
  */
-char receive_byte (void) {
+    char
+receive_byte (void)
+{
     return '0';
 }
 
@@ -144,10 +156,11 @@ char receive_byte (void) {
  *  byte from our transmit buffer into the data register, or if there is no
  *  more data to be transmitted, disable the UDRE interrupt.
  */
-ISR (USART_UDRE_vect) {
+ISR (USART_UDRE_vect)
+{
     // Check if there's data available in the transmit queue.
-    if (transmit_queue.data_length > 0) {
-        //PORTB &= ~0x20;
+    if (transmit_queue.data_length > 0)
+    {
         // Copy the next byte from the transmit queue buffer into the USART
         // data register.
         UDR0 = transmit_queue.data [transmit_queue.head_pos];
@@ -159,7 +172,9 @@ ISR (USART_UDRE_vect) {
 
         // update the data length, now there's one less byte in the queue.
         transmit_queue.data_length --;
-    } else {
+    }
+    else
+    {
         // nothing to transmit, so disable the UDRE interrupt.
         UCSR0B &= ~0x20;
     }
@@ -175,7 +190,8 @@ ISR (USART_UDRE_vect) {
  *  if all is good transfer the received byte from the data register to our
  *  receive buffer.
  */
-ISR (USART_RX_vect) {
+ISR (USART_RX_vect)
+{
 }
 
 /********************************************************************/
