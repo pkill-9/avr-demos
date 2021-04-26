@@ -8,14 +8,13 @@
 
 struct buffer
 {
-    char data [BUFFER_LENGTH];
+    const char *messages [BUFFER_LENGTH];
     int data_length;
     int head_pos;
     int tail_pos;
 };
 
 struct buffer transmit_queue;
-struct buffer receive_queue;
 
 /********************************************************************/
 
@@ -27,7 +26,7 @@ struct buffer receive_queue;
  */
     void
 uart_init (baud_rate)
-    unsigned long baud_rate;
+    unsigned long baud_rate;    // baud rate, in bits/sec
 {
     // disabling interrupts is required during initialisation for interrupt
     // driven UART operation.
@@ -62,9 +61,6 @@ uart_init (baud_rate)
     transmit_queue.head_pos = 0;
     transmit_queue.tail_pos = 0;
     transmit_queue.data_length = 0;
-    receive_queue.head_pos = 0;
-    receive_queue.tail_pos = 0;
-    receive_queue.data_length = 0;
 
     // enable interrupts now that configuration is done.
     sei ();
@@ -91,44 +87,32 @@ transmit_byte (byte)
 /********************************************************************/
 
 /**
- *  Copies a message into the transmit queue, and begins the process of
- *  sending it via the USART hardware.
+ *  Adds a message to the next free slot in the transmit queue, for the USART
+ *  hardware to send.
  *
- *  If there is insufficient space in the transmit buffer, then this function
- *  will transmit as many bytes as it can.
- *
- *  Return value is the number of bytes copied to the transmit queue.
+ *  If the transmit queue is full, this function will return 0.
  */
     size_t
 transmit_string (message)
-    const char *message;
+    const char *message;        // pointer to the string to transmit
 {
-    size_t message_length = strlen (message);
+    // First, check if the transmit queue is full.
+    if (transmit_queue.data_length == BUFFER_LENGTH)
+        return 0;
 
-    // check if the message length is greater than the available space in the
-    // buffer.
-    if (message_length > BUFFER_LENGTH - transmit_queue.data_length)
-        message_length = BUFFER_LENGTH - transmit_queue.data_length;
+    // Add the new message to the tail of the queue, and advance the tail
+    // index by one place.
+    transmit_queue.messages [transmit_queue.tail_pos] = message;
+    transmit_queue.tail_pos ++;
 
-    // iterate through the bytes to copy into the buffer. We will copy them
-    // into the slot pointed to by the tail index and increment the tail index.
-    // Once the tail index reaches the end of the buffer, it wraps around to
-    // the start.
-    for (int i = 0; i < message_length; i ++)
-    {
-        transmit_queue.data [transmit_queue.tail_pos] = message [i];
-        transmit_queue.tail_pos ++;
-        transmit_queue.tail_pos %= BUFFER_LENGTH;
-    }
-
-    // update the transmit queue length
-    transmit_queue.data_length += message_length;
+    // increment the count of messages awaiting transmission.
+    transmit_queue.data_length ++;
 
     // enable the UDRE interrupt by setting bit 5 in the UCSR0B register,
     // since it would be disabled if transmission isn't in progress.
     UCSR0B |= 0x20;
 
-    return message_length;
+    return strlen (message);
 }
 
 /********************************************************************/
@@ -161,17 +145,30 @@ ISR (USART_UDRE_vect)
     // Check if there's data available in the transmit queue.
     if (transmit_queue.data_length > 0)
     {
-        // Copy the next byte from the transmit queue buffer into the USART
-        // data register.
-        UDR0 = transmit_queue.data [transmit_queue.head_pos];
+        // Check if we've reached the end of the string for the current message
+        // being transmitted.
+        //
+        // Note that when we reach the null byte, we just advance the head_pos
+        // to the next slot. That slot may have another message to transmit,
+        // or it may be empty, depending on the data_length. After we exit the
+        // ISR, the ISR will be invoked again straight away (because the UDRE
+        // flag is still set), and then we can sort out if there's another
+        // message to send or not.
+        if (*(transmit_queue.messages [transmit_queue.head_pos]) != '\0')
+        {
+            // copy the next byte from the message into the USART data
+            // register
+            UDR0 = *(transmit_queue.messages [transmit_queue.head_pos]);
 
-        // Advance the position of the transmit queue head to the next byte
-        // in the buffer (wrapping around if it passes the end).
-        transmit_queue.head_pos ++;
-        transmit_queue.head_pos %= BUFFER_LENGTH;
-
-        // update the data length, now there's one less byte in the queue.
-        transmit_queue.data_length --;
+            // Advance the pointer to the next byte of the string.
+            transmit_queue.messages [transmit_queue.head_pos] ++;
+        }
+        else
+        {
+            transmit_queue.head_pos ++;
+            transmit_queue.head_pos %= BUFFER_LENGTH;
+            transmit_queue.data_length --;
+        }
     }
     else
     {
