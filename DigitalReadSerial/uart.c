@@ -104,6 +104,7 @@ transmit_string (message)
     // index by one place.
     transmit_queue.messages [transmit_queue.tail_pos] = message;
     transmit_queue.tail_pos ++;
+    transmit_queue.tail_pos %= BUFFER_LENGTH;
 
     // increment the count of messages awaiting transmission.
     transmit_queue.data_length ++;
