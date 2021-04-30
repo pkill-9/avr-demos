@@ -11,7 +11,7 @@
 
 void uart_init (unsigned long baud_rate);
 size_t transmit_string (const char *message);
-unsigned int transmit_int (int value);
+size_t transmit_int (int value);
 
 #endif // _UART_H
 
