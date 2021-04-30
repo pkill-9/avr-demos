@@ -69,24 +69,6 @@ uart_init (baud_rate)
 /********************************************************************/
 
 /**
- *  Transmit a byte of data from the MCU to another device via the USART.
- *  We use interrupt driven operation, so this function will simply add the
- *  byte to a transmit queue. The Data Register Empty ISR will handle the
- *  task of passing the data to the USART hardware.
- *
- *  If there is no other data in the transmit queue, this function will 
- *  enable the UDRE interrupt.
- */
-    void
-transmit_byte (byte)
-    char byte;
-{
-    // not implemented
-}
-
-/********************************************************************/
-
-/**
  *  Adds a message to the next free slot in the transmit queue, for the USART
  *  hardware to send.
  *
@@ -119,16 +101,14 @@ transmit_string (message)
 /********************************************************************/
 
 /**
- *  Receive a byte from the USART hardware.
- *
- *  If the receive queue is empty (no data yet received), this function will
- *  put the MCU into a low power mode until data becomes available in the
- *  buffer.
+ *  Convert an integer to a decimal string representation, and transmit the
+ *  characters on the USART lines.
  */
-    char
-receive_byte (void)
+    unsigned int
+transmit_int (value)
+    int value;
 {
-    return '0';
+    return 0;
 }
 
 /********************************************************************/
@@ -176,20 +156,6 @@ ISR (USART_UDRE_vect)
         // nothing to transmit, so disable the UDRE interrupt.
         UCSR0B &= ~0x20;
     }
-}
-
-/********************************************************************/
-
-/**
- *  USART Receive Complete interrupt handler.
- *
- *  Invoked when the USART hardware has finished receiving a frame.
- *  Action taken is to check the status register for any error flags, and
- *  if all is good transfer the received byte from the data register to our
- *  receive buffer.
- */
-ISR (USART_RX_vect)
-{
 }
 
 /********************************************************************/

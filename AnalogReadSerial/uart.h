@@ -10,9 +10,8 @@
 #include <string.h>
 
 void uart_init (unsigned long baud_rate);
-void transmit_byte (char byte);
-char receive_byte (void);
 size_t transmit_string (const char *message);
+unsigned int transmit_int (int value);
 
 #endif // _UART_H
 
