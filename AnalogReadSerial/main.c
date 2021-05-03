@@ -7,6 +7,10 @@
 
 /********************************************************************/
 
+static volatile unsigned int reading;
+
+/********************************************************************/
+
 /**
  *  ARDUINO ANALOG READ SERIAL DEMO IN C
  *
@@ -26,8 +30,6 @@
     int
 main (void)
 {
-    unsigned int reading;
-
     analog_init (0x01);
     uart_init (9600);
 
@@ -38,16 +40,14 @@ main (void)
     // Enter an infinite sleep loop. Note that we will take the analog reading
     // in this loop, not the ISR, because the analog_read function will put
     // the MCU in noise reduction sleep, which probably shouldn't be done in
-    // an ISR.
+    // an ISR (ie, we don't want to wait for an interrupt while we're handling
+    // an interrupt).
     while (1)
     {
         sei ();
         sleep_mode ();
 
         reading = analog_read (0);
-        transmit_string ("Got reading: ");
-        transmit_int (reading);
-        transmit_string ("\r\n");
     }
 
     return 0;
@@ -58,13 +58,16 @@ main (void)
 /**
  *  This ISR is triggered on every clock overflow interrupt.
  *
- *  It has no action to perform, rather the action is taken in the main loop
- *  which is woken from sleep by this interrupt.
+ *  It will transmit the message containing the most recently obtained
+ *  reading via the UART hardware. Calling the transmit functions is safe
+ *  from inside an ISR, because those functions don't need to put the MCU in
+ *  sleep mode.
  */
 ISR (TIMER1_OVF_vect)
 {
-    // do nothing
-    ;
+    transmit_string ("Got reading: ");
+    transmit_int (reading);
+    transmit_string ("\r\n");
 }
 
 /********************************************************************/
