@@ -178,11 +178,50 @@ string_transmit_handler (data)
 
 /********************************************************************/
 
+/**
+ *  This function is called from the UDRE ISR. It handles printing the next
+ *  digit of the number, and updating the mask and number.
+ *
+ *  Return value is 1 if we have finished printing all digits.
+ */
     static int
 integer_transmit_handler (data)
     union message_data *data;
 {
-    return 0;
+    uint8_t next_digit;
+
+    // handle printing the - sign for a negative int.
+    if (data->number < 0)
+    {
+        UDR0 = '-';
+        data->number *= -1;
+        return 0;
+    }
+
+    // the mask variable will be zero if this is the first digit being printed.
+    // In that case, set it to select the left most decimal digit.
+    // Note that ints are 16 bits long, range -32,768 to 32,767
+    if (digit_mask == 0)
+    {
+        digit_mask = 10000;
+
+        // find the most significant digit by repeatedly dividing the mask by
+        // 10.
+        while (data->number / digit_mask == 0)
+            digit_mask /= 10;
+    }
+
+    // Get the next digit by integer division with the mask, then the
+    // remaining digits still to be printed is obtained by modulo division.
+    next_digit = data->number / digit_mask;
+    data->number %= digit_mask;
+    digit_mask /= 10;
+
+    // convert the digit to a character, and store it in the USART data
+    // register.
+    UDR0 = digit_map [next_digit];
+
+    return (digit_mask == 0? 1 : 0);
 }
 
 /********************************************************************/
