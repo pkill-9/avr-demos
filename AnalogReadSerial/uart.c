@@ -40,13 +40,14 @@ struct buffer
 static struct buffer transmit_queue;
 
 // global int used as a mask to select the next digit to print.
-static int digit_mask;
+static volatile int digit_mask;
 
 // This string is used to map a digit to a character
-const char *digit_map = "0123456789ABCDEF";
+static const char *digit_map = "0123456789ABCDEF";
 
 /********************************************************************/
 
+static struct queue_item *allocate_item (void);
 static int string_transmit_handler (union message_data *data);
 static int integer_transmit_handler (union message_data *data);
 
@@ -96,6 +97,9 @@ uart_init (baud_rate)
     transmit_queue.tail_pos = 0;
     transmit_queue.data_length = 0;
 
+    // set the digit mask to zero
+    digit_mask = 0;
+
     // enable interrupts now that configuration is done.
     sei ();
 }
@@ -112,22 +116,16 @@ uart_init (baud_rate)
 transmit_string (message)
     const char *message;        // pointer to the string to transmit
 {
-    struct queue_item *next_item;
+    struct queue_item *next_item = allocate_item ();
 
-    // First, check if the transmit queue is full.
-    if (transmit_queue.data_length == BUFFER_LENGTH)
+    // if the buffer is full, return 0.
+    if (next_item == NULL)
         return 0;
 
-    // Add the new message to the tail of the queue, and advance the tail
-    // index by one place.
-    next_item = transmit_queue.items + transmit_queue.tail_pos;
+    // Add the message string pointer, and set the correct function to handle
+    // printing it.
     next_item->data.text = message;
     next_item->transmit_function = &(string_transmit_handler);
-    transmit_queue.tail_pos ++;
-    transmit_queue.tail_pos %= BUFFER_LENGTH;
-
-    // increment the count of messages awaiting transmission.
-    transmit_queue.data_length ++;
 
     // enable the UDRE interrupt by setting bit 5 in the UCSR0B register,
     // since it would be disabled if transmission isn't in progress.
@@ -146,7 +144,47 @@ transmit_string (message)
 transmit_int (value)
     int value;
 {
-    return 0;
+    struct queue_item *next_item = allocate_item ();
+
+    if (next_item == NULL)
+        return 0;
+
+    // add the transmit_int message to the end of the queue.
+    next_item->data.number = value;
+    next_item->transmit_function = &(integer_transmit_handler);
+
+    UCSR0B |= 0x20;
+
+    return sizeof (int);
+}
+
+/********************************************************************/
+
+/**
+ *  Fetch the next available slot in the transmit buffer. If the buffer is
+ *  full, this function will return null.
+ *
+ *  This function will update the tail_pos index, and the data_length.
+ */
+    static struct queue_item *
+allocate_item (void)
+{
+    struct queue_item *next_item;
+
+    // First, check if the transmit queue is full.
+    if (transmit_queue.data_length == BUFFER_LENGTH)
+        return NULL;
+
+    // next free slot points to tail_pos index of the items array.
+    // Update the tail_pos after getting the pointer.
+    next_item = transmit_queue.items + transmit_queue.tail_pos;
+    transmit_queue.tail_pos ++;
+    transmit_queue.tail_pos %= BUFFER_LENGTH;
+
+    // increment the count of messages awaiting transmission.
+    transmit_queue.data_length ++;
+
+    return next_item;
 }
 
 /********************************************************************/
