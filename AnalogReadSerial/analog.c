@@ -87,6 +87,24 @@ analog_read (channel)
 /********************************************************************/
 
 /**
+ *  Set the ADC to perform regular conversions, triggered by a timer overflow
+ *  interrupt. This function will set up timer 1 (16 bit counter), with the
+ *  given prescaler select bits. When it overflows, the ADC will convert the
+ *  value from the specified channel, and will then invoke the callback
+ *  function.
+ */
+    void
+ad_convert_on_clock_irq (channel, prescaler, callback)
+    unsigned int channel;
+    uint8_t prescaler;
+    void (*callback) (unsigned int conversion_result);
+{
+    return;
+}
+
+/********************************************************************/
+
+/**
  *  ADC complete interrupt handler.
  *
  *  Action to perform (in single shot mode) is to fetch the conversion results
