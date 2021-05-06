@@ -5,9 +5,10 @@
 #include "uart.h"
 #include "analog.h"
 
+
 /********************************************************************/
 
-static volatile unsigned int reading;
+static void transmit_results (unsigned int conversion_results);
 
 /********************************************************************/
 
@@ -33,9 +34,8 @@ main (void)
     analog_init (0x01);
     uart_init (9600);
 
-    // set up timer 1, as per the blink example and enable the IRQ.
-    TCCR1B = (TCCR1B & 0xF8) | 0x04;
-    TIMSK1 |= 0x01;
+    // Set the ADC to perform conversions triggered by the timer.
+    ad_convert_on_clock_irq (0, 0x04, &transmit_results);
 
     // Enter an infinite sleep loop. Note that we will take the analog reading
     // in this loop, not the ISR, because the analog_read function will put
@@ -46,8 +46,6 @@ main (void)
     {
         sei ();
         sleep_mode ();
-
-        reading = analog_read (0);
     }
 
     return 0;
@@ -55,18 +53,12 @@ main (void)
 
 /********************************************************************/
 
-/**
- *  This ISR is triggered on every clock overflow interrupt.
- *
- *  It will transmit the message containing the most recently obtained
- *  reading via the UART hardware. Calling the transmit functions is safe
- *  from inside an ISR, because those functions don't need to put the MCU in
- *  sleep mode.
- */
-ISR (TIMER1_OVF_vect)
+    void
+transmit_results (conversion_results)
+    unsigned int conversion_results;
 {
-    transmit_string ("Got reading: ");
-    transmit_int (reading);
+    transmit_string ("Got analog reading: ");
+    transmit_int (conversion_results);
     transmit_string ("\r\n");
 }
 

@@ -1,6 +1,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
+#include <stddef.h>
 
 #include "analog.h"
 
@@ -10,6 +11,7 @@
 // masks for the ADCSRA register
 #define ADCSRA_AD_ENABLE            0x80
 #define ADCSRA_START_CONVERSION     0x40
+#define ADCSRA_AUTO_TRIGGER         0x20
 #define ADCSRA_IRQ_ENABLE           0x08
 #define ADCSRA_PRESCALER            0x07
 // note: prescaler selects the /128 prescaler, which will provide an ADC clock
@@ -23,6 +25,10 @@ static volatile unsigned int conversion_results;
 // the above variable (after all, the conversion result itself only uses 10
 // bits). This mask isolates our results_ready flag bit.
 #define RESULTS_READY_MASK          0x8000
+
+// function to call with the conversion results, in the case of conversions
+// triggered by timer interrupt
+static void (*results_callback) (unsigned int results);
 
 
 /********************************************************************/
@@ -99,7 +105,26 @@ ad_convert_on_clock_irq (channel, prescaler, callback)
     uint8_t prescaler;
     void (*callback) (unsigned int conversion_result);
 {
-    return;
+    // Set the ADMUX register to indicate which channel we're reading from
+    ADMUX &= ~ADMUX_MASK;
+    ADMUX |= channel & ADMUX_MASK;
+
+    // Set up the ADC to be automatically triggered
+    ADCSRA |= ADCSRA_AUTO_TRIGGER;
+
+    // Set the auto-trigger source to timer 1 overflow.
+    ADCSRB &= ~ (0x07);
+    ADCSRB |= 0x06;
+
+    // Set up timer 1 with the specified prescaler bits, and enable the irq.
+    TCCR1B = (TCCR1B & 0xF8) | (prescaler & 0xF8);
+    TIMSK1 |= 0x01;
+
+    // save the callback function.
+    results_callback = callback;
+
+    // now enable the ADC.
+    ADCSRA |= ADCSRA_START_CONVERSION;
 }
 
 /********************************************************************/
@@ -110,12 +135,32 @@ ad_convert_on_clock_irq (channel, prescaler, callback)
  *  Action to perform (in single shot mode) is to fetch the conversion results
  *  and place them in a variable. The analog_read function will then return
  *  that value back to it's caller.
+ *
+ *  In auto-trigger mode, this ISR will fetch the conversion result, and then
+ *  call the callback function.
  */
 ISR (ADC_vect)
 {
     conversion_results |= ADCL;
     conversion_results |= ADCH << 8;
-    conversion_results |= RESULTS_READY_MASK;
+
+    if (results_callback != NULL)
+        results_callback (conversion_results);
+}
+
+/********************************************************************/
+
+/**
+ *  Timer 1 overflow ISR.
+ *
+ *  This doesn't actually perform any action, but we have to have the ISR,
+ *  because we need to enable the timer interrupt in order to have the ADC
+ *  perform conversions automatically.
+ */
+ISR (TIMER1_OVF_vect)
+{
+    // do nothing
+    ;
 }
 
 /********************************************************************/
