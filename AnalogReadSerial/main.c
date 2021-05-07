@@ -35,7 +35,7 @@ main (void)
     uart_init (9600);
 
     // Set the ADC to perform conversions triggered by the timer.
-    ad_convert_on_clock_irq (0, 0x04, &transmit_results);
+    ad_convert_on_clock_irq (0x01, 0x04, &transmit_results);
 
     // Enter an infinite sleep loop. Note that we will take the analog reading
     // in this loop, not the ISR, because the analog_read function will put
@@ -57,9 +57,11 @@ main (void)
 transmit_results (conversion_results)
     unsigned int conversion_results;
 {
+    /*
     transmit_string ("Got analog reading: ");
     transmit_int (conversion_results);
     transmit_string ("\r\n");
+    */
 }
 
 /********************************************************************/

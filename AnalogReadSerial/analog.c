@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 #include "analog.h"
+#include "uart.h"
 
 // mask for the ADC MUX selection bits in the ADMUX register
 #define ADMUX_MASK 0x0F
@@ -117,14 +118,11 @@ ad_convert_on_clock_irq (channel, prescaler, callback)
     ADCSRB |= 0x06;
 
     // Set up timer 1 with the specified prescaler bits, and enable the irq.
-    TCCR1B = (TCCR1B & 0xF8) | (prescaler & 0xF8);
+    TCCR1B = (TCCR1B & 0xF8) | prescaler;
     TIMSK1 |= 0x01;
 
     // save the callback function.
     results_callback = callback;
-
-    // now enable the ADC.
-    ADCSRA |= ADCSRA_START_CONVERSION;
 }
 
 /********************************************************************/
@@ -141,11 +139,19 @@ ad_convert_on_clock_irq (channel, prescaler, callback)
  */
 ISR (ADC_vect)
 {
+    if ((conversion_results & 0x8000) == 0)
+        return;
+
     conversion_results |= ADCL;
     conversion_results |= ADCH << 8;
 
+    transmit_int (conversion_results & ~0x8000);
+    transmit_string ("\r\n");
+
     if (results_callback != NULL)
         results_callback (conversion_results);
+
+    conversion_results = 0;
 }
 
 /********************************************************************/
@@ -160,7 +166,8 @@ ISR (ADC_vect)
 ISR (TIMER1_OVF_vect)
 {
     // do nothing
-    ;
+    transmit_string ("timer interrupt\r\n");
+    conversion_results |= 0x8000;
 }
 
 /********************************************************************/
