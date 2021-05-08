@@ -13,6 +13,7 @@
 #define ADCSRA_AD_ENABLE            0x80
 #define ADCSRA_START_CONVERSION     0x40
 #define ADCSRA_AUTO_TRIGGER         0x20
+#define ADCSRA_IRQ_FLAG             0x10
 #define ADCSRA_IRQ_ENABLE           0x08
 #define ADCSRA_PRESCALER            0x07
 // note: prescaler selects the /128 prescaler, which will provide an ADC clock
@@ -139,19 +140,8 @@ ad_convert_on_clock_irq (channel, prescaler, callback)
  */
 ISR (ADC_vect)
 {
-    if ((conversion_results & 0x8000) == 0)
-        return;
-
     conversion_results |= ADCL;
     conversion_results |= ADCH << 8;
-
-    transmit_int (conversion_results & ~0x8000);
-    transmit_string ("\r\n");
-
-    if (results_callback != NULL)
-        results_callback (conversion_results);
-
-    conversion_results = 0;
 }
 
 /********************************************************************/
@@ -165,9 +155,8 @@ ISR (ADC_vect)
  */
 ISR (TIMER1_OVF_vect)
 {
-    // do nothing
-    transmit_string ("timer interrupt\r\n");
-    conversion_results |= 0x8000;
+    if (results_callback != NULL)
+        results_callback (conversion_results);
 }
 
 /********************************************************************/

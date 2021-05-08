@@ -57,11 +57,9 @@ main (void)
 transmit_results (conversion_results)
     unsigned int conversion_results;
 {
-    /*
     transmit_string ("Got analog reading: ");
     transmit_int (conversion_results);
     transmit_string ("\r\n");
-    */
 }
 
 /********************************************************************/
