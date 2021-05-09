@@ -28,7 +28,7 @@ pwm_init (channel)
     TCCR0A |= (COMPARE_OUTPUT_MODE << (channel == CHANNEL_A)? 6 : 4) | WAVEFORM_MODE;
 
     // set the prescaler
-    TCCR0B |= PRESCALER_SELECT
+    TCCR0B |= PRESCALER_SELECT;
 
     // set the compare register to zero for the respective channel
     switch (channel)
