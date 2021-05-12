@@ -87,7 +87,7 @@ PROJECTNAME=fade
 # (list all files to compile, e.g. 'a.c b.cpp as.S'):
 # Use .cc, .cpp or .C suffix for C++ files, use .S 
 # (NOT .s !!!) for assembly source code files.
-PRJSRC=pwm.c
+PRJSRC=pwm.c main.c
 
 # additional includes (e.g. -I/path/to/mydir)
 INC=

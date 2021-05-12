@@ -25,7 +25,7 @@ pwm_init (channel)
 {
     // Shift the compare output mode bits to the right place in the register
     // for either channel A or channel B.
-    TCCR0A |= (COMPARE_OUTPUT_MODE << (channel == CHANNEL_A)? 6 : 4) | WAVEFORM_MODE;
+    TCCR0A |= (COMPARE_OUTPUT_MODE << (channel == CHANNEL_A? 6 : 4)) | WAVEFORM_MODE;
 
     // set the prescaler
     TCCR0B |= PRESCALER_SELECT;
@@ -35,10 +35,12 @@ pwm_init (channel)
     {
     case CHANNEL_A:
         OCR0A = 0;
+        DDRD |= 0x40;
         break;
 
     case CHANNEL_B:
         OCR0B = 0;
+        DDRD |= 0x20;
         break;
     }
 
