@@ -80,14 +80,14 @@ PROGRAMMER_MCU=m328p
 
 # Name of our project
 # (use a single word, e.g. 'myproject')
-PROJECTNAME=fade
+PROJECTNAME=pitch_follower
 
 # Source files
 # List C/C++/Assembly source files:
 # (list all files to compile, e.g. 'a.c b.cpp as.S'):
 # Use .cc, .cpp or .C suffix for C++ files, use .S 
 # (NOT .s !!!) for assembly source code files.
-PRJSRC=tone.c
+PRJSRC=tone.c analog.c
 
 # additional includes (e.g. -I/path/to/mydir)
 INC=
