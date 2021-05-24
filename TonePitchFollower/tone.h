@@ -15,6 +15,6 @@ void tone_init (uint8_t channel);
 void set_frequency (uint8_t channel, uint8_t frequency_level);
 void no_tone (uint8_t channel);
 
-#endif
+#endif // _TONE_H
 
 /** vim: set ts=4 sw=4 et : */
