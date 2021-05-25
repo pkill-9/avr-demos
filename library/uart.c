@@ -161,6 +161,20 @@ transmit_int (value)
 /********************************************************************/
 
 /**
+ *  Return the number of available slots in the transmit queue.
+ *  This ensures that if callers need to send multiple messages, we can ensure
+ *  the output doesn't get garbled if the last part of the message bundle would
+ *  be dropped due to the queue filling up.
+ */
+    uint8_t
+tx_slots_free (void)
+{
+    return BUFFER_LENGTH - transmit_queue.data_length;
+}
+
+/********************************************************************/
+
+/**
  *  Fetch the next available slot in the transmit buffer. If the buffer is
  *  full, this function will return null.
  *
