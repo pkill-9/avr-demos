@@ -4,6 +4,7 @@
 
 #include "analog.h"
 #include "tone.h"
+#include "uart.h"
 
 /********************************************************************/
 
@@ -31,8 +32,10 @@ static volatile uint8_t refresh_reading;
     int
 main (void)
 {
+    int value;
     analog_init (0x01);
     tone_init (CHANNEL_A);
+    uart_init (9600);
     refresh_reading = 0;
 
     // Set the prescaler bits for timer 2. 0x07 selects the /1024 prescaler,
@@ -46,7 +49,23 @@ main (void)
         sleep_mode ();
 
         if (refresh_reading)
-            set_frequency (CHANNEL_A, analog_read (0));
+        {
+            value = analog_read (0);
+
+            // map the analog reading range from 0:1023 to 0:255, by shifting
+            // the bits right.
+            value >>= 2;
+            set_frequency (CHANNEL_A, value);
+            refresh_reading = 0;
+
+            // send the analog reading on the UART
+            if (tx_slots_free () >= 3)
+            {
+                transmit_string ("Reading on A0 pin is: ");
+                transmit_int (value);
+                transmit_string ("\r\n");
+            }
+        }
     }
 
     return 0;
