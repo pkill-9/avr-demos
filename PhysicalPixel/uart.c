@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/sleep.h>
 #include <string.h>
 
 #include "uart.h"
@@ -44,6 +45,11 @@ static volatile int digit_mask;
 
 // This string is used to map a digit to a character
 static const char *digit_map = "0123456789ABCDEF";
+
+// variable to hold a byte received from the UART hardware, and a flag variable
+// tp indicate that data was received.
+static volatile char received_data;
+static volatile uint8_t got_char;
 
 /********************************************************************/
 
@@ -99,6 +105,9 @@ uart_init (baud_rate)
 
     // set the digit mask to zero
     digit_mask = 0;
+
+    received_data = 0;
+    got_char = 0;
 
     // enable interrupts now that configuration is done.
     sei ();
@@ -170,6 +179,30 @@ transmit_int (value)
 tx_slots_free (void)
 {
     return BUFFER_LENGTH - transmit_queue.data_length;
+}
+
+/********************************************************************/
+
+/**
+ *  Wait for the next character to be received via the USART hardware.
+ *  NOTE: this function cannot be called from within an ISR, as it makes use
+ *  of sleep mode.
+ *
+ *  Return value is the received character.
+ */
+    char
+uart_getchar (void)
+{
+    got_char = 0;
+
+    // Now put the MCU to sleep until we receive a char.
+    while (got_char != 1)
+    {
+        sei ();
+        sleep_mode ();
+    }
+
+    return received_data;
 }
 
 /********************************************************************/
