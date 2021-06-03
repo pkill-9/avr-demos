@@ -348,4 +348,18 @@ ISR (USART_UDRE_vect)
 
 /********************************************************************/
 
+/**
+ *  USART RX Complete interrupt handler.
+ *
+ *  This is invoked once the USART hardware has received a byte. The action
+ *  performed is to read the data from the USART data register (which clears
+ *  the interrupt) and store the value in a global variable.
+ */
+ISR (USART_RX_vect)
+{
+    received_data = UDR0;
+}
+
+/********************************************************************/
+
 // vim: ts=4 sw=4 et
