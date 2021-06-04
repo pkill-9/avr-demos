@@ -87,11 +87,10 @@ uart_init (baud_rate)
     UBRR0L = (unsigned char) (baud_counter);
 
     // USART Control Register B bits:
-    // 0 0 0 0 1 0 0 0
-    // - don't enable interrupts. Only UDRE is used, and it doesn't need to
-    //   be enabled yet.
-    // - enable the transmitter to send data, leave the receiver disabled.
-    UCSR0B = 0x08;
+    // 1 0 0 1 1 0 0 0
+    // - enable the RX complete interrupt, but leave the UDRE interrupt disabled.
+    // - enable the transmitter and receiver.
+    UCSR0B = 0x98;
 
     // The reset value for UCSR0C is set to 8 bit frames, which we will use.
     // Set it to send two stop bits.
@@ -358,6 +357,7 @@ ISR (USART_UDRE_vect)
 ISR (USART_RX_vect)
 {
     received_data = UDR0;
+    got_char = 1;
 }
 
 /********************************************************************/
