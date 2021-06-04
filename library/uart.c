@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/sleep.h>
 #include <string.h>
 
 #include "uart.h"
@@ -45,6 +46,11 @@ static volatile int digit_mask;
 // This string is used to map a digit to a character
 static const char *digit_map = "0123456789ABCDEF";
 
+// variable to hold a byte received from the UART hardware, and a flag variable
+// tp indicate that data was received.
+static volatile char received_data;
+static volatile uint8_t got_char;
+
 /********************************************************************/
 
 static struct queue_item *allocate_item (void);
@@ -81,11 +87,10 @@ uart_init (baud_rate)
     UBRR0L = (unsigned char) (baud_counter);
 
     // USART Control Register B bits:
-    // 0 0 0 0 1 0 0 0
-    // - don't enable interrupts. Only UDRE is used, and it doesn't need to
-    //   be enabled yet.
-    // - enable the transmitter to send data, leave the receiver disabled.
-    UCSR0B = 0x08;
+    // 1 0 0 1 1 0 0 0
+    // - enable the RX complete interrupt, but leave the UDRE interrupt disabled.
+    // - enable the transmitter and receiver.
+    UCSR0B = 0x98;
 
     // The reset value for UCSR0C is set to 8 bit frames, which we will use.
     // Set it to send two stop bits.
@@ -99,6 +104,9 @@ uart_init (baud_rate)
 
     // set the digit mask to zero
     digit_mask = 0;
+
+    received_data = 0;
+    got_char = 0;
 
     // enable interrupts now that configuration is done.
     sei ();
@@ -170,6 +178,30 @@ transmit_int (value)
 tx_slots_free (void)
 {
     return BUFFER_LENGTH - transmit_queue.data_length;
+}
+
+/********************************************************************/
+
+/**
+ *  Wait for the next character to be received via the USART hardware.
+ *  NOTE: this function cannot be called from within an ISR, as it makes use
+ *  of sleep mode.
+ *
+ *  Return value is the received character.
+ */
+    char
+uart_getchar (void)
+{
+    got_char = 0;
+
+    // Now put the MCU to sleep until we receive a char.
+    while (got_char != 1)
+    {
+        sei ();
+        sleep_mode ();
+    }
+
+    return received_data;
 }
 
 /********************************************************************/
@@ -311,6 +343,21 @@ ISR (USART_UDRE_vect)
         // nothing to transmit, so disable the UDRE interrupt.
         UCSR0B &= ~0x20;
     }
+}
+
+/********************************************************************/
+
+/**
+ *  USART RX Complete interrupt handler.
+ *
+ *  This is invoked once the USART hardware has received a byte. The action
+ *  performed is to read the data from the USART data register (which clears
+ *  the interrupt) and store the value in a global variable.
+ */
+ISR (USART_RX_vect)
+{
+    received_data = UDR0;
+    got_char = 1;
 }
 
 /********************************************************************/

@@ -14,6 +14,8 @@ size_t transmit_string (const char *message);
 size_t transmit_int (int value);
 uint8_t tx_slots_free (void);
 
+char uart_getchar (void);
+
 #endif // _UART_H
 
 // vim: ts=4 sw=4 et
