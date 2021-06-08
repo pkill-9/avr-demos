@@ -8,6 +8,7 @@
 #define _UART_H
 
 #include <string.h>
+#include <stdint.h>
 
 void uart_init (unsigned long baud_rate);
 size_t transmit_string (const char *message);
