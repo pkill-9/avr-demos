@@ -215,7 +215,7 @@ GENASMFILES=$(filter %.s, $(OBJDEPS:.o=.s))
 
 # Make targets:
 # all, disasm, stats, hex, writeflash/install, clean
-all: $(TRG)
+all: $(TRG) cscope.out
 
 disasm: $(DUMPTRG) stats
 
@@ -303,6 +303,9 @@ $(GDBINITFILE): $(TRG)
 	@echo
 	@echo "Use 'avr-gdb -x $(GDBINITFILE)'"
 
+#### Generate a cscope tags db from C source files ####
+cscope.out:	$(CFILES)
+	cscope -b
 
 #### Cleanup ####
 clean:
@@ -312,6 +315,7 @@ clean:
 	$(REMOVE) $(GENASMFILES)
 	$(REMOVE) $(HEXTRG)
 	$(REMOVE) depend
+	$(REMOVE) cscope.out
 
 
 #### C header dependencies ####
