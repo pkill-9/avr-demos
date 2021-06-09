@@ -21,11 +21,14 @@ main (void)
 {
     uart_init (9600);
 
+    transmit_string ("Write a message\r\n");
+
     while (1)
     {
         // read a string from the UART and echo it back.
         uart_getline (buffer, BUFFER_SIZE);
         transmit_string (buffer);
+        transmit_string ("\n");
     }
 
     return 0;

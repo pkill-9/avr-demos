@@ -226,7 +226,7 @@ uart_getline (buffer, max_length)
     size_t bytes_read = 0;
 
     // keep reading bytes until either a null byte, or the buffer is full.
-    while ((*buffer = uart_getchar()) != '\n' && max_length > 1)
+    while ((*buffer = uart_getchar()) != '\r' && max_length > 1)
     {
         max_length --;
         buffer ++;
