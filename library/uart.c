@@ -207,6 +207,41 @@ uart_getchar (void)
 /********************************************************************/
 
 /**
+ *  Read data from USART, line oriented.
+ *
+ *  This function will accept bytes from the USART hardware, storing them in a
+ *  buffer specified by the caller until either 1) a newline \n character is
+ *  received; or 2) the buffer is filled.
+ *
+ *  The data in the buffer will be terminated by a null byte, and will include
+ *  the newline character (if it is received).
+ *
+ *  Return value is the number of bytes stored in the buffer.
+ */
+    size_t
+uart_getline (buffer, max_length)
+    char *buffer;
+    size_t max_length;
+{
+    size_t bytes_read = 0;
+
+    // keep reading bytes until either a null byte, or the buffer is full.
+    while ((*buffer = uart_getchar()) != '\r' && max_length > 1)
+    {
+        max_length --;
+        buffer ++;
+        bytes_read ++;
+    }
+
+    // place a terminating null byte after the byte just read
+    *(buffer + 1) = '\0';
+
+    return bytes_read;
+}
+
+/********************************************************************/
+
+/**
  *  Fetch the next available slot in the transmit buffer. If the buffer is
  *  full, this function will return null.
  *
