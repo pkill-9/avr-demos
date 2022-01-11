@@ -80,14 +80,14 @@ PROGRAMMER_MCU=m328p
 
 # Name of our project
 # (use a single word, e.g. 'myproject')
-PROJECTNAME=i2c-demo
+PROJECTNAME=i2c-blink
 
 # Source files
 # List C/C++/Assembly source files:
 # (list all files to compile, e.g. 'a.c b.cpp as.S'):
 # Use .cc, .cpp or .C suffix for C++ files, use .S 
 # (NOT .s !!!) for assembly source code files.
-PRJSRC=i2c.c
+PRJSRC=i2c.c blink.c
 
 # additional includes (e.g. -I/path/to/mydir)
 INC=
@@ -97,7 +97,7 @@ LIBS=
 
 # Optimization level, 
 # use s (size opt), 1, 2, 3 or 0 (off)
-OPTLEVEL=1
+OPTLEVEL=2
 
 
 #####      AVR Dude 'writeflash' options       #####
