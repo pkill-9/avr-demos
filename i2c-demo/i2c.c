@@ -8,6 +8,7 @@
  */
 
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include <stddef.h>
 
 #include "i2c.h"
@@ -38,6 +39,18 @@ static struct i2c_queue_item i2c_buffer [BUFFER_LENGTH];
 
 static struct i2c_queue_item *queue_head;
 static struct i2c_queue_item *queue_tail;
+
+//
+// constants for certain register bitmasks
+//
+// TWI control register
+#define I2C_INT_FLAG    0x80
+#define I2C_ENABLE      0x04
+#define I2C_ENABLE_IRQ  0x01
+#define I2C_ENABLE_ACK  0x40
+#define I2C_START       0x20
+#define I2C_STOP        0x10
+
 
 /********************************************************************/
 
@@ -93,11 +106,22 @@ i2c_send_to (device_address, data, length)
     buffer_slot->data = data;
     buffer_slot->length = length;
     buffer_slot->i2c_mode = MASTER_TRANSMITTER_MODE;
-
-    // link the message to the tail of the queue.
     buffer_slot->next = NULL;
-    queue_tail->next = buffer_slot;
-    queue_tail = buffer_slot;
+
+    // If the queue is empty, the new item is the new head, and we also need
+    // to instruct the hardware to send a START signal. If there are other
+    // items in the queue, append the new item at the tail.
+    if (queue_tail == NULL)
+    {
+        queue_head = buffer_slot;
+        queue_tail = buffer_slot;
+        TWCR = I2C_START | I2C_ENABLE | I2C_ENABLE_IRQ;
+    }
+    else
+    {
+        queue_tail->next = buffer_slot;
+        queue_tail = buffer_slot;
+    }
 }
 
 /********************************************************************/
@@ -147,8 +171,42 @@ master_transmitter_handler (void)
     case 0x08:
     case 0x10:
         // START or REPEAT START has been sent; load slave address + write
-        // bit into TWDR.
+        // bit (LSB = 0) into TWDR.
+        TWDR = queue_head->device_address << 1;
+        TWCR = I2C_INT_FLAG | I2C_ENABLE | I2C_ENABLE_IRQ;
         break;
+
+    case 0x28:
+    case 0x30:
+        // data has been transmitted and either ACK (0x28) or NOT ACK (0x30)
+        // has been received. Move on to the next byte to be transmitted (if
+        // available).
+        queue_head->data ++;
+        queue_head->length --;
+
+        // if the data length is zero, move the queue head along the list.
+        if (queue_head->length == 0)
+        {
+            queue_head = queue_head->next;
+
+            // if there's another item to transmit, send REPEAT START. If
+            // there's no other item, send STOP.
+            if (queue_head != NULL)
+            {
+                TWCR = I2C_INT_FLAG | I2C_START | I2C_ENABLE | I2C_ENABLE_IRQ;
+                break;
+            }
+            else
+            {
+                // queue is empty, so mark tail as null too.
+                queue_tail = NULL;
+                TWCR = I2C_INT_FLAG | I2C_STOP | I2C_ENABLE | I2C_ENABLE_IRQ;
+                break;
+            }
+        }
+
+        // If we reach this point, there is valid data to transmit. Fall
+        // through to send the next byte.
 
     case 0x18:
     case 0x20:
@@ -156,12 +214,8 @@ master_transmitter_handler (void)
         // data byte into TWDR.
         // TODO: 0x20 indicates that NOT ACK was received, should this be
         // considered an error?
-        break;
-
-    case 0x28:
-    case 0x30:
-        // data has been transmitted and either ACK (0x28) or NOT ACK (0x30)
-        // has been received. Load next data byte into TWDR.
+        TWDR = *(queue_head->data);
+        TWCR = I2C_INT_FLAG | I2C_ENABLE | I2C_ENABLE_IRQ;
         break;
 
     case 0x38:
@@ -175,6 +229,34 @@ master_transmitter_handler (void)
         // status code not defined in datasheet. This code should never be
         // reached.
         break;
+    }
+}
+
+/********************************************************************/
+
+/**
+ *  Interrupt handler for TWI / I2C hardware. This is invoked after hardware
+ *  events, as set out in the datasheet (eg sent start signal, sent data).
+ */
+ISR (TWI_vect)
+{
+    // check that the queue head is available (if not, ignore the interrupt)
+    if (queue_head == NULL)
+    {
+        TWCR |= I2C_INT_FLAG;
+        return;
+    }
+
+    // check the I2C mode of the queue head, and dispatch to the corresponding
+    // function
+    switch (queue_head->i2c_mode)
+    {
+    case MASTER_TRANSMITTER_MODE:
+        master_transmitter_handler ();
+        break;
+
+    default:
+        TWCR |= I2C_INT_FLAG;
     }
 }
 
