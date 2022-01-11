@@ -8,6 +8,7 @@
  */
 
 #include <avr/io.h>
+#include <stddef.h>
 
 #include "i2c.h"
 
@@ -23,6 +24,7 @@ struct i2c_queue_item
     uint8_t device_address;
     uint8_t i2c_mode;
     const uint8_t *data;
+    uint8_t length;
     struct i2c_queue_item *next;
 };
 
@@ -76,9 +78,54 @@ i2c_init (void)
     void
 i2c_send_to (device_address, data, length)
     uint8_t device_address;     // 8 bit I2C device address
-    const char *data;           // data to send (one or more bytes)
+    const uint8_t *data;        // data to send (one or more bytes)
     unsigned int length;        // number of bytes to send
 {
+    // get a free slot from the buffer
+    struct i2c_queue_item *buffer_slot = allocate_queue_slot ();
+
+    // if the buffer is full, do nothing.
+    if (buffer_slot == NULL)
+        return;
+
+    // store the message details.
+    buffer_slot->device_address = device_address;
+    buffer_slot->data = data;
+    buffer_slot->length = length;
+    buffer_slot->i2c_mode = MASTER_TRANSMITTER_MODE;
+
+    // link the message to the tail of the queue.
+    buffer_slot->next = NULL;
+    queue_tail->next = buffer_slot;
+    queue_tail = buffer_slot;
+}
+
+/********************************************************************/
+
+/**
+ *  Find an available slot in the I2C message buffer.
+ *
+ *  Used slots are identified based on the i2c_mode field being set to either
+ *  master transmitter or master receiver. If the mode is set to zero, the
+ *  slot is available. If the buffer is full, this function will return NULL
+ */
+    struct i2c_queue_item *
+allocate_queue_slot (void)
+{
+    struct i2c_queue_item *found_slot = NULL;
+
+    // iterate through the array and find a slot with the i2c_mode set to
+    // zero.
+    for (int i = 0; i < BUFFER_LENGTH; i ++)
+    {
+        if (i2c_buffer [i].i2c_mode == 0x00)
+        {
+            found_slot = &(i2c_buffer [i]);
+            break;
+        }
+    }
+
+    return found_slot;
 }
 
 /********************************************************************/
@@ -90,7 +137,7 @@ i2c_send_to (device_address, data, length)
  *  take the appropriate action by loading values into the data register
  *  and/or control register
  */
-    void
+    static void
 master_transmitter_handler (void)
 {
     uint8_t status_code = TWSR & 0xF8;
