@@ -20,7 +20,7 @@
 //
 // constants for interacting with the MCP-23008 chip
 //
-#define GPIO_I2C_ADDRESS    0x40
+#define GPIO_I2C_ADDRESS    0x20
 #define IODIR_REGISTER      0x00
 #define GPIO_REGISTER       0x09
 

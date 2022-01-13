@@ -51,6 +51,8 @@ static struct i2c_queue_item *queue_tail;
 #define I2C_START       0x20
 #define I2C_STOP        0x10
 
+#define TWI_FREQ 100000L
+
 
 /********************************************************************/
 
@@ -72,6 +74,14 @@ i2c_init (void)
     // setting the i2c_mode to zero.
     for (int i = 0; i < BUFFER_LENGTH; i ++)
         i2c_buffer [i].i2c_mode = 0x00;
+
+    // enable internal pull-up resistors on SDA & SCL lines.
+    PORTC = 0x30;
+
+    // Set the bit rate register to the correct value for the desired I2C
+    // bus frequency. This formula can be found in the Atmel datasheet.
+    TWBR = ((F_CPU / TWI_FREQ) - 16) / 2;
+    TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWEA);
 }
 
 /********************************************************************/
@@ -111,11 +121,11 @@ i2c_send_to (device_address, data, length)
     // If the queue is empty, the new item is the new head, and we also need
     // to instruct the hardware to send a START signal. If there are other
     // items in the queue, append the new item at the tail.
-    if (queue_tail == NULL)
+    if (queue_head == NULL)
     {
         queue_head = buffer_slot;
         queue_tail = buffer_slot;
-        TWCR = I2C_START | I2C_ENABLE | I2C_ENABLE_IRQ;
+        TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWEA) | _BV (TWINT) | _BV (TWSTA);
     }
     else
     {
@@ -173,7 +183,7 @@ master_transmitter_handler (void)
         // START or REPEAT START has been sent; load slave address + write
         // bit (LSB = 0) into TWDR.
         TWDR = queue_head->device_address << 1;
-        TWCR = I2C_INT_FLAG | I2C_ENABLE | I2C_ENABLE_IRQ;
+        TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWINT) | _BV (TWEA);
         break;
 
     case 0x28:
@@ -187,6 +197,7 @@ master_transmitter_handler (void)
         // if the data length is zero, move the queue head along the list.
         if (queue_head->length == 0)
         {
+            queue_head->i2c_mode = 0;
             queue_head = queue_head->next;
 
             // if there's another item to transmit, send REPEAT START. If
@@ -200,7 +211,7 @@ master_transmitter_handler (void)
             {
                 // queue is empty, so mark tail as null too.
                 queue_tail = NULL;
-                TWCR = I2C_INT_FLAG | I2C_STOP | I2C_ENABLE | I2C_ENABLE_IRQ;
+                TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWEA) | _BV (TWINT) | _BV (TWSTO);
                 break;
             }
         }
@@ -215,7 +226,7 @@ master_transmitter_handler (void)
         // TODO: 0x20 indicates that NOT ACK was received, should this be
         // considered an error?
         TWDR = *(queue_head->data);
-        TWCR = I2C_INT_FLAG | I2C_ENABLE | I2C_ENABLE_IRQ;
+        TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWINT) | _BV (TWEA);
         break;
 
     case 0x38:
