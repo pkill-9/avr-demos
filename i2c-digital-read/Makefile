@@ -87,7 +87,7 @@ PROJECTNAME=i2c-digital-read
 # (list all files to compile, e.g. 'a.c b.cpp as.S'):
 # Use .cc, .cpp or .C suffix for C++ files, use .S 
 # (NOT .s !!!) for assembly source code files.
-PRJSRC=i2c.c
+PRJSRC=i2c.c main.c uart.c
 
 # additional includes (e.g. -I/path/to/mydir)
 INC=
@@ -97,7 +97,7 @@ LIBS=
 
 # Optimization level, 
 # use s (size opt), 1, 2, 3 or 0 (off)
-OPTLEVEL=1
+OPTLEVEL=2
 
 
 #####      AVR Dude 'writeflash' options       #####

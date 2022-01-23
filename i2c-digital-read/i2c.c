@@ -3,7 +3,7 @@
  *
  *  Functions for interacting with Atmel microcontroller TWI (two wire 
  *  interface) hardware. Atmel TWI is inter-operable with I2C. These 
- *  functions enable the calling code to transsfer data to and from other
+ *  functions enable the calling code to transfer data to and from other
  *  devices connected to the microcontroller via an I2C bus.
  */
 
@@ -13,6 +13,7 @@
 #include <stddef.h>
 
 #include "i2c.h"
+#include "uart.h"
 
 /********************************************************************/
 
@@ -106,6 +107,12 @@ i2c_send_to (device_address, data, length)
         return;
 
     // store the message details.
+    //transmit_string ("sending data to I2C address: ");
+    //transmit_int (device_address);
+    //transmit_string ("; length: ");
+    //transmit_int (length);
+    //transmit_string ("\r\n");
+
     buffer_slot->device_address = device_address;
     buffer_slot->data = (uint8_t *) data;
     buffer_slot->length = length;
@@ -200,7 +207,7 @@ i2c_receive_from (device_address, buffer, length)
 enqueue (item)
     struct i2c_queue_item *item;
 {
-    if (queue_head == NULL)
+    if (queue_tail == NULL)
     {
         queue_head = item;
         queue_tail = item;
@@ -242,7 +249,7 @@ dequeue (void)
     else
     {
         // send REPEAT START signal.
-        TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWEA) | _BV (TWINT) | _BV (TWSTA);
+        TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWEA) | _BV (TWINT) | _BV (TWSTA) | _BV (TWSTO);
     }
 }
 
@@ -287,6 +294,9 @@ allocate_queue_slot (void)
 master_transmitter_handler (status_code)
     uint8_t status_code;
 {
+    //transmit_string ("[master transmitter mode] status code: ");
+    //transmit_int (status_code);
+    //transmit_string ("\r\n");
     switch (status_code)
     {
     case 0x28:
@@ -314,6 +324,11 @@ master_transmitter_handler (status_code)
         // TODO: 0x20 indicates that NOT ACK was received, should this be
         // considered an error?
         TWDR = *(queue_head->data);
+        //if (tx_slots_free () > 2)
+        //{
+        //    transmit_int (*(queue_head->data));
+        //    transmit_string ("\r\n");
+        //}
         TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWINT) | _BV (TWEA);
         break;
 
@@ -327,6 +342,9 @@ master_transmitter_handler (status_code)
     default:
         // status code not defined in datasheet. This code should never be
         // reached.
+        transmit_string ("I2C error: ");
+        transmit_int (status_code);
+        transmit_string ("\r\n");
         break;
     }
 }
@@ -414,8 +432,8 @@ ISR (TWI_vect)
     // duplicating the code.
     if (status_code == 0x08 || status_code == 0x10)
     {
-        TWDR = queue_head->device_address << 1 | 
-            (queue_head->i2c_mode == MASTER_RECEIVER_MODE)? 0x01 : 0x00;
+        TWDR = (queue_head->device_address << 1) | 
+            ((queue_head->i2c_mode == MASTER_RECEIVER_MODE)? 0x01 : 0x00);
         TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWINT) | _BV (TWEA);
         return;
     }
@@ -425,10 +443,12 @@ ISR (TWI_vect)
     switch (queue_head->i2c_mode)
     {
     case MASTER_TRANSMITTER_MODE:
+        //transmit_string ("[master transmitter]\r\n");
         master_transmitter_handler (status_code);
         break;
 
     case MASTER_RECEIVER_MODE:
+        //transmit_string ("[master receiver]\r\n");
         master_receiver_handler (status_code);
         break;
 
