@@ -332,9 +332,16 @@ integer_transmit_handler (data)
 
     // Get the next digit by integer division with the mask, then the
     // remaining digits still to be printed is obtained by modulo division.
-    next_digit = data->number / digit_mask;
-    data->number %= digit_mask;
-    digit_mask /= 10;
+    if (digit_mask != 0)
+    {
+        next_digit = data->number / digit_mask;
+        data->number %= digit_mask;
+        digit_mask /= 10;
+    }
+    else
+    {
+        next_digit = data->number;
+    }
 
     // convert the digit to a character, and store it in the USART data
     // register.
