@@ -13,7 +13,7 @@
 void i2c_init (void);
 void i2c_send_to (uint8_t device_address, const uint8_t *data, unsigned int length);
 uint8_t i2c_read_register (uint8_t device_address, uint8_t device_register);
-void i2c_read_bytes (uint8_t device_address, char *buffer, unsigned int length);
+void i2c_receive_from (uint8_t device_address, uint8_t *buffer, unsigned int length);
 
 #endif // _I2C_H
 

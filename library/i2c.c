@@ -3,12 +3,13 @@
  *
  *  Functions for interacting with Atmel microcontroller TWI (two wire 
  *  interface) hardware. Atmel TWI is inter-operable with I2C. These 
- *  functions enable the calling code to transsfer data to and from other
+ *  functions enable the calling code to transfer data to and from other
  *  devices connected to the microcontroller via an I2C bus.
  */
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/sleep.h>
 #include <stddef.h>
 
 #include "i2c.h"
@@ -24,7 +25,7 @@ struct i2c_queue_item
 {
     uint8_t device_address;
     uint8_t i2c_mode;
-    const uint8_t *data;
+    uint8_t *data;
     uint8_t length;
     struct i2c_queue_item *next;
 };
@@ -40,16 +41,6 @@ static struct i2c_queue_item i2c_buffer [BUFFER_LENGTH];
 static struct i2c_queue_item *queue_head;
 static struct i2c_queue_item *queue_tail;
 
-//
-// constants for certain register bitmasks
-//
-// TWI control register
-#define I2C_INT_FLAG    0x80
-#define I2C_ENABLE      0x04
-#define I2C_ENABLE_IRQ  0x01
-#define I2C_ENABLE_ACK  0x40
-#define I2C_START       0x20
-#define I2C_STOP        0x10
 
 #define TWI_FREQ 100000L
 
@@ -57,7 +48,10 @@ static struct i2c_queue_item *queue_tail;
 /********************************************************************/
 
 static struct i2c_queue_item *allocate_queue_slot (void);
-static void master_transmitter_handler (void);
+static void master_transmitter_handler (uint8_t status_code);
+static void master_receiver_handler (uint8_t status_code);
+static void enqueue (struct i2c_queue_item *item);
+static void dequeue (void);
 
 /********************************************************************/
 
@@ -113,24 +107,142 @@ i2c_send_to (device_address, data, length)
 
     // store the message details.
     buffer_slot->device_address = device_address;
-    buffer_slot->data = data;
+    buffer_slot->data = (uint8_t *) data;
     buffer_slot->length = length;
     buffer_slot->i2c_mode = MASTER_TRANSMITTER_MODE;
     buffer_slot->next = NULL;
 
-    // If the queue is empty, the new item is the new head, and we also need
-    // to instruct the hardware to send a START signal. If there are other
-    // items in the queue, append the new item at the tail.
-    if (queue_head == NULL)
+    enqueue (buffer_slot);
+}
+
+/********************************************************************/
+
+/**
+ *  Read the value from a single specified register from a specified device
+ *  address on the I2C bus. This function will do a write operation to send
+ *  the register address to the device, followed by a read operation to fetch
+ *  the value.
+ *
+ *  This function will block until the data has been fetched from the
+ *  register, note that I2C isn't particularly fast so we will sleep for
+ *  posibly many CPU cycles.
+ */
+    uint8_t
+i2c_read_register (device_address, device_register)
+    uint8_t device_address;
+    uint8_t device_register;
+{
+    uint8_t register_contents;
+
+    // Set the remote device's register pointer to the register that we need
+    // to read from. (this call doesn't block)
+    i2c_send_to (device_address, &device_register, 1);
+
+    // Reading a single register works the same as reading multiple registers,
+    // except the count is 1. This call waits until the data is received.
+    i2c_receive_from (device_address, &register_contents, 1);
+
+    return register_contents;
+}
+
+/********************************************************************/
+
+/**
+ *  Fetch the values from many registers in sequence.
+ *
+ *  This function will read the specified length of bytess from the specified
+ *  device, and the device should automatically advance it's internal
+ *  register pointer to the next register after each byte is returned.
+ *
+ *  This function will put the MCU in a sleep mode until all of the bytes
+ *  have been received.
+ */
+    void
+i2c_receive_from (device_address, buffer, length)
+    uint8_t device_address;
+    uint8_t *buffer;
+    unsigned int length;
+{
+    // get a free slot from the buffer
+    struct i2c_queue_item *buffer_slot = allocate_queue_slot ();
+
+    // if the buffer is full, do nothing.
+    if (buffer_slot == NULL)
+        return;
+
+    // store the message details.
+    buffer_slot->device_address = device_address;
+    buffer_slot->data = buffer;
+    buffer_slot->length = length;
+    buffer_slot->i2c_mode = MASTER_RECEIVER_MODE;
+    buffer_slot->next = NULL;
+
+    enqueue (buffer_slot);
+
+    // Sleep until all bytes are received.
+    while (buffer_slot->i2c_mode != 0)
     {
-        queue_head = buffer_slot;
-        queue_tail = buffer_slot;
+        sei ();
+        sleep_mode ();
+    }
+}
+
+/********************************************************************/
+
+/**
+ *  Append the given queue structure as the new tail of the queue. If the
+ *  queue is empty, the item also becomes the queue head.
+ *
+ *  If the queue is empty, this function will also set the control register
+ *  to send the START signal.
+ */
+    static void
+enqueue (item)
+    struct i2c_queue_item *item;
+{
+    if (queue_tail == NULL)
+    {
+        queue_head = item;
+        queue_tail = item;
         TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWEA) | _BV (TWINT) | _BV (TWSTA);
     }
     else
     {
-        queue_tail->next = buffer_slot;
-        queue_tail = buffer_slot;
+        queue_tail->next = item;
+        queue_tail = item;
+    }
+}
+
+/********************************************************************/
+
+/**
+ *  Remove the item at the head of the queue, and point the head to the next
+ *  item if available.
+ *
+ *  If the head is the last item in the queue, both the head and tail will
+ *  be set to NULL, and this function will also set the control register to
+ *  send a STOP signal.
+ */
+    static void
+dequeue (void)
+{
+    // de-allocate the item at the head of the queue, by setting the i2c_mode
+    // field to 0.
+    queue_head->i2c_mode = 0;
+    queue_head = queue_head->next;
+
+    // if there's another item to transmit, send REPEAT START. If
+    // there's no other item, send STOP.
+    if (queue_head == NULL)
+    {
+        // queue is empty, so mark tail as null too and send the STOP signal
+        queue_tail = NULL;
+        TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWEA) | _BV (TWINT) | _BV (TWSTO);
+    }
+    else
+    {
+        // send REPEAT START signal.
+        TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWEA) | _BV (TWINT) | _BV (TWSTA) | _BV (TWSTO);
     }
 }
 
@@ -172,20 +284,11 @@ allocate_queue_slot (void)
  *  and/or control register
  */
     static void
-master_transmitter_handler (void)
+master_transmitter_handler (status_code)
+    uint8_t status_code;
 {
-    uint8_t status_code = TWSR & 0xF8;
-
     switch (status_code)
     {
-    case 0x08:
-    case 0x10:
-        // START or REPEAT START has been sent; load slave address + write
-        // bit (LSB = 0) into TWDR.
-        TWDR = queue_head->device_address << 1;
-        TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWINT) | _BV (TWEA);
-        break;
-
     case 0x28:
     case 0x30:
         // data has been transmitted and either ACK (0x28) or NOT ACK (0x30)
@@ -197,23 +300,8 @@ master_transmitter_handler (void)
         // if the data length is zero, move the queue head along the list.
         if (queue_head->length == 0)
         {
-            queue_head->i2c_mode = 0;
-            queue_head = queue_head->next;
-
-            // if there's another item to transmit, send REPEAT START. If
-            // there's no other item, send STOP.
-            if (queue_head != NULL)
-            {
-                TWCR = I2C_INT_FLAG | I2C_START | I2C_ENABLE | I2C_ENABLE_IRQ;
-                break;
-            }
-            else
-            {
-                // queue is empty, so mark tail as null too.
-                queue_tail = NULL;
-                TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWEA) | _BV (TWINT) | _BV (TWSTO);
-                break;
-            }
+            dequeue ();
+            break;
         }
 
         // If we reach this point, there is valid data to transmit. Fall
@@ -246,15 +334,89 @@ master_transmitter_handler (void)
 /********************************************************************/
 
 /**
+ *  Handle I2C events in master receiver mode.
+ */
+    void
+master_receiver_handler (status_code)
+    uint8_t status_code;
+{
+    uint8_t ack;
+
+    switch (status_code)
+    {
+    case 0x50:
+        // data byte has been received, ACK has been returned. We need to
+        // fetch the data from TWDR.
+        *(queue_head->data) = TWDR;
+
+        // move the pointer to the next data slot, and reduce the length to
+        // read.
+        queue_head->data ++;
+        queue_head->length --;
+
+        //
+        // fall through to decide whether to send an ACK or NACK, depending
+        // on whether the next byte is the last we want to receive.
+        //
+
+    case 0x40:
+        // slave address + read has been transmitted, and ACK received. Next
+        // action is to set the TWEA bit to send either ACK or NACK after we
+        // receive the data byte; ACK if we want to keep receiving more data.
+        ack = (queue_head->length > 1)? _BV (TWEA) : 0x00;
+        TWCR = _BV (TWINT) | _BV (TWEN) | _BV (TWIE) | ack;
+        break;
+
+    case 0x58:
+        // data byte has been received, NACK returned. This is the last data
+        // byte we want to receive (hopefully). Fetch the data from TWDR and
+        // advance the queue to the next item.
+        *(queue_head->data) = TWDR;
+        dequeue ();
+        break;
+
+    case 0x38:
+        // Arbitration lost. This shouldn't happen since the MCU should be
+        // the only master on the I2C bus.
+
+    case 0x48:
+        // NACK received after slave address + read transmitted. This most
+        // likely indicates connectivity problems (broken wire etc) or
+        // something else that means the slave isn't available.
+
+    default:
+        // This should never be reached, as the above cases cover all of the
+        // status codes applicable for master receiver mode.
+        break;
+    }
+}
+
+/********************************************************************/
+
+/**
  *  Interrupt handler for TWI / I2C hardware. This is invoked after hardware
  *  events, as set out in the datasheet (eg sent start signal, sent data).
  */
 ISR (TWI_vect)
 {
+    uint8_t status_code = TWSR & 0xF8;
+
     // check that the queue head is available (if not, ignore the interrupt)
     if (queue_head == NULL)
     {
-        TWCR |= I2C_INT_FLAG;
+        TWCR |= _BV (TWINT);
+        return;
+    }
+
+    // check the status code. If it's 0x08 or 0x10, indicating START or
+    // REPEAT START completed, next step is to send the slave address plus
+    // read/write bit depending on the operation. Handled here to avoid
+    // duplicating the code.
+    if (status_code == 0x08 || status_code == 0x10)
+    {
+        TWDR = (queue_head->device_address << 1) |
+            ((queue_head->i2c_mode == MASTER_RECEIVER_MODE)? 0x01 : 0x00);
+        TWCR = _BV (TWEN) | _BV (TWIE) | _BV (TWINT) | _BV (TWEA);
         return;
     }
 
@@ -263,11 +425,15 @@ ISR (TWI_vect)
     switch (queue_head->i2c_mode)
     {
     case MASTER_TRANSMITTER_MODE:
-        master_transmitter_handler ();
+        master_transmitter_handler (status_code);
+        break;
+
+    case MASTER_RECEIVER_MODE:
+        master_receiver_handler (status_code);
         break;
 
     default:
-        TWCR |= I2C_INT_FLAG;
+        TWCR |= _BV (TWINT);
     }
 }
 
