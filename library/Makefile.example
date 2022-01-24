@@ -90,7 +90,7 @@ PROJECTNAME=
 PRJSRC=analog.c i2c.c pwm.c uart.c
 
 # additional includes (e.g. -I/path/to/mydir)
-INC=
+INC=-I/usr/local/include
 
 # libraries to link in (e.g. -lmylib)
 LIBS=
@@ -139,7 +139,7 @@ AVRDUDE_PROGRAMMERID=usbtiny
 HEXFORMAT=ihex
 
 # compiler
-CFLAGS=-I. $(INC) -g -mmcu=$(MCU) -O$(OPTLEVEL) -DF_CPU=$(F_CPU) -flto \
+CFLAGS=$(INC) -g -mmcu=$(MCU) -O$(OPTLEVEL) -DF_CPU=$(F_CPU) -flto \
 	-fpack-struct -fshort-enums             \
 	-funsigned-bitfields -funsigned-char    \
 	-Wall -Wstrict-prototypes               \
@@ -161,7 +161,7 @@ ASMFLAGS =-I. $(INC) -mmcu=$(MCU)        \
 
 
 # linker
-LDFLAGS=-Wl,-gc-sections,-Map,$(TRG).map -mmcu=$(MCU) -flto -O$(OPTLEVEL) $(LIBS)
+LDFLAGS=-Wl,-gc-sections,-Map,$(TRG).map -mmcu=$(MCU) -flto -O$(OPTLEVEL) -L/usr/local/lib/
 
 ##### executables ####
 CC=avr-gcc
@@ -238,7 +238,7 @@ $(DUMPTRG): $(TRG)
 
 
 $(TRG): $(OBJDEPS) 
-	$(CC) $(LDFLAGS) -o $(TRG) $(OBJDEPS)
+	$(CC) $(LDFLAGS) -o $(TRG) $(OBJDEPS) $(LIBS)
 
 
 #### Generating assembly ####
