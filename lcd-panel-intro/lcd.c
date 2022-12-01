@@ -3,6 +3,7 @@
  */
 
 #include <avr/interrupt.h>
+#include <avr/io.h>
 #include <stddef.h>
 
 #include "lcd.h"
@@ -21,6 +22,7 @@ typedef struct spi_queue_item
 static spi_queue_item_t spi_queue [SPI_QUEUE_LENGTH];
 static spi_queue_item_t *queue_start = NULL;
 static spi_queue_item_t *queue_end = NULL;
+static volatile spi_queue_item_t *free_list = NULL;
 
 
 /********************************************************************/
@@ -45,6 +47,15 @@ static spi_queue_item_t *spi_dequeue (void);
     void
 lcd_init (void)
 {
+    //
+    // Mark all the slots in the spi_queue as free (add them to the free
+    // list).
+    //
+    for (int i = 0; i < SPI_QUEUE_LENGTH; i ++)
+    {
+        spi_queue [i].next = free_list;
+        free_list = spi_queue + i;
+    }
 }
 
 /********************************************************************/
@@ -62,6 +73,95 @@ lcd_fill_colour (colour)
 /********************************************************************/
 
 /**
+ *  Accept data to be sent over the SPI bus.
+ *
+ *  If there's no SPI transfer in progress, this function will enable the
+ *  SPI and place the message in the data register; bypassing the queue.
+ *  Otherwise, this function will place the message on the tail of the
+ *  queue.
+ *
+ *  If the queue is full, this function will wait until a queue slot is
+ *  available.
+ *
+ *  Due to blocking on full queue, this function cannot be called with
+ *  interrupts disabled (such as within an ISR).
+ */
+    static void
+spi_enqueue (message)
+    uint8_t message;
+{
+    spi_queue_item_t *queue_slot;
+
+    // Check if the SPI is enabled in the control register
+    if ((SPCR & _BV (SPE)) == 0)
+    {
+        // no transfer in progress.
+        SPCR |= (_BV (SPE) | _BV (SPIE));
+        SPDR = message;
+        return;
+    }
+
+    // busy wait until a queue slot becomes available (in case the queue
+    // is full).
+    while (free_list == NULL)
+        ;
+
+    // get the queue slot from the free list and advance the free list
+    queue_slot = (spi_queue_item_t *) free_list;
+    free_list = free_list->next;
+
+    // store the data to transfer, and append the message to the queue tail.
+    queue_slot->data = message;
+
+    if (queue_end == NULL)
+    {
+        queue_start = queue_slot;
+        queue_end = queue_slot;
+    }
+    else
+    {
+        queue_end->next = queue_slot;
+        queue_end = queue_slot;
+    }
+}
+
+/********************************************************************/
+
+/**
+ *  Fetch the item at the start of the SPI message queue.
+ *
+ *  If the queue is empty this function will return null.
+ *
+ *  This function will also remove the item from the start of the queue,
+ *  and update the queue start and end item pointers. The removed item will
+ *  also be added onto the free list.
+ */
+    static spi_queue_item_t *
+spi_dequeue (void)
+{
+    spi_queue_item_t *item;
+
+    // check if the queue is empty.
+    if (queue_start == NULL)
+        return NULL;
+
+    // fetch the item and update the pointers.
+    item = queue_start;
+    queue_start = queue_start->next;
+
+    if (queue_start == NULL)
+        queue_end = NULL;
+
+    // update the free slots list
+    item->next = (spi_queue_item_t *) free_list;
+    free_list = item;
+
+    return item;
+}
+
+/********************************************************************/
+
+/**
  *  Handler for the SPI serial transfer complete IRQ.
  *
  *  Action is to dequeue the next message to send over SPI and place it in
@@ -69,6 +169,18 @@ lcd_fill_colour (colour)
  */
 ISR (SPI_STC_vect)
 {
+    spi_queue_item_t *next_message = spi_dequeue ();
+
+    if (next_message != NULL)
+    {
+        SPDR = next_message->data;
+    }
+    else
+    {
+        // clear the SPI enable bit and the interrupt enable bit in the
+        // control register
+        SPCR &= ~(_BV (SPE) | _BV (SPIE));
+    }
 }
 
 /********************************************************************/
