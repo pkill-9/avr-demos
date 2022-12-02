@@ -30,6 +30,9 @@
 #define COLOUR_PINK             0xFE19
 #define COLOUR_SKY_BLUE         0x867D
 
+#define SCREEN_ROWS             320
+#define SCREEN_COLUMNS          240
+
 
 void lcd_init (void);
 void lcd_fill_colour (uint16_t colour);

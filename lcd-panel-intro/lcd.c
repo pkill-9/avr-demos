@@ -10,12 +10,18 @@
 
 /********************************************************************/
 
+#define CMD_WRITE_RAM           0x2C
+
+#define DCX_CMD                 0
+#define DCX_DATA                1
+
 #define SPI_QUEUE_LENGTH        64
 
 
 typedef struct spi_queue_item
 {
     uint8_t data;
+    unsigned int dcx_pin;
     struct spi_queue_item *next;
 } spi_queue_item_t;
 
@@ -27,7 +33,7 @@ static volatile spi_queue_item_t *free_list = NULL;
 
 /********************************************************************/
 
-static void spi_enqueue (uint8_t message);
+static void spi_enqueue (uint8_t message, unsigned int dcx_pin);
 static spi_queue_item_t *spi_dequeue (void);
 
 
@@ -53,9 +59,16 @@ lcd_init (void)
     //
     for (int i = 0; i < SPI_QUEUE_LENGTH; i ++)
     {
-        spi_queue [i].next = free_list;
+        spi_queue [i].next = (spi_queue_item_t *) free_list;
         free_list = spi_queue + i;
     }
+
+    // Set the DCX pin and CS pin to output mode.
+    DDRD |= 0x04 | 0x08 | 0x10;
+
+    // Set the SPI CS pin to HIGH. Once we begin a transfer we will pull it
+    // low.
+    PORTD |= 0x08 | 0x10;
 }
 
 /********************************************************************/
@@ -68,6 +81,16 @@ lcd_init (void)
 lcd_fill_colour (colour)
     uint16_t colour;
 {
+    spi_enqueue (CMD_WRITE_RAM, DCX_CMD);
+
+    for (int row = 0; row < SCREEN_ROWS; row ++)
+    {
+        for (int col = 0; col < SCREEN_COLUMNS; col ++)
+        {
+            spi_enqueue (colour >> 8, DCX_DATA);
+            spi_enqueue (colour & 0x00FF, DCX_DATA);
+        }
+    }
 }
 
 /********************************************************************/
@@ -87,16 +110,24 @@ lcd_fill_colour (colour)
  *  interrupts disabled (such as within an ISR).
  */
     static void
-spi_enqueue (message)
+spi_enqueue (message, dcx_pin)
     uint8_t message;
+    unsigned int dcx_pin;
 {
     spi_queue_item_t *queue_slot;
 
     // Check if the SPI is enabled in the control register
     if ((SPCR & _BV (SPE)) == 0)
     {
+        // Set the value on the DCX line. This is connected to port D
+        // pin 2.
+        PORTD = (dcx_pin == 1)? (PORTD | 0x04) : (PORTD & 0xFB);
+
+        // Pull the CS line LOW
+        PORTD &= ~0x08;
+
         // no transfer in progress.
-        SPCR |= (_BV (SPE) | _BV (SPIE));
+        SPCR |= (_BV (SPE) | _BV (SPIE) | _BV (MSTR));
         SPDR = message;
         return;
     }
@@ -112,6 +143,7 @@ spi_enqueue (message)
 
     // store the data to transfer, and append the message to the queue tail.
     queue_slot->data = message;
+    queue_slot->dcx_pin = dcx_pin;
 
     if (queue_end == NULL)
     {
@@ -173,6 +205,7 @@ ISR (SPI_STC_vect)
 
     if (next_message != NULL)
     {
+        PORTD = (next_message->dcx_pin == 1)? (PORTD | 0x04) : (PORTD & 0xFB);
         SPDR = next_message->data;
     }
     else
@@ -180,6 +213,10 @@ ISR (SPI_STC_vect)
         // clear the SPI enable bit and the interrupt enable bit in the
         // control register
         SPCR &= ~(_BV (SPE) | _BV (SPIE));
+
+        // Bring the CS line HIGH to indicate to the LCD controller that
+        // the SPI bus isn't talking to it now.
+        PORTD |= 0x08;
     }
 }
 
