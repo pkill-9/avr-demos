@@ -52,7 +52,7 @@ static const uint8_t st7789_init_cmds [] = {
         0x55,                   // 16 bit colour (rgb 565)
         10,                     // 10 ms delay
     MADCTL, 1,                  // memory access ctrl
-        0x08,
+        0x00,
     CASET, 4,                   // column addr set, 4 args
         0,                      // xstart high bits
         0,                      // xstart low bits
