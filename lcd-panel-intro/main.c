@@ -37,6 +37,7 @@ const uint16_t colours_list [] = {
 #define NUM_COLOURS     19
 
 static volatile int current_colour = 0;
+static volatile int is_new_colour = 0;
 
 
 /********************************************************************/
@@ -54,7 +55,11 @@ main (void)
 
     while (1)
     {
-        lcd_fill_colour (colours_list [current_colour]);
+        if (is_new_colour != 0)
+        {
+            lcd_fill_colour (colours_list [current_colour]);
+            is_new_colour = 0;
+        }
 
         sei ();
         sleep_mode ();
@@ -67,8 +72,8 @@ main (void)
 
 ISR (TIMER1_OVF_vect)
 {
-    current_colour ++;
-    current_colour %= NUM_COLOURS;
+    current_colour = (current_colour >= NUM_COLOURS - 1)? 0 : current_colour + 1;
+    is_new_colour = 1;
 }
 
 /********************************************************************/

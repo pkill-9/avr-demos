@@ -4,13 +4,24 @@
 
 #include <avr/interrupt.h>
 #include <avr/io.h>
+#include <util/delay.h>
 #include <stddef.h>
 
 #include "lcd.h"
 
 /********************************************************************/
 
-#define CMD_WRITE_RAM           0x2C
+#define SWRESET             0x01
+#define SLPOUT              0x11
+#define COLMOD              0x3A
+#define MADCTL              0x36
+#define CASET               0x2A
+#define RASET               0x2B
+#define RAMWR               0x2C
+#define INVON               0x21
+#define NORON               0x13
+#define DISPON              0x29
+#define CMD_DELAY           0x80
 
 #define DCX_CMD                 0
 #define DCX_DATA                1
@@ -18,24 +29,44 @@
 #define SPI_QUEUE_LENGTH        64
 
 
-typedef struct spi_queue_item
-{
-    uint8_t data;
-    unsigned int dcx_pin;
-    struct spi_queue_item *next;
-} spi_queue_item_t;
+/********************************************************************/
 
-static spi_queue_item_t spi_queue [SPI_QUEUE_LENGTH];
-static spi_queue_item_t *queue_start = NULL;
-static spi_queue_item_t *queue_end = NULL;
-static volatile spi_queue_item_t *free_list = NULL;
+static void display_init (const uint8_t *cmd_list);
+static void send_command (uint8_t cmd, const uint8_t *params, uint8_t num_params);
+static void spi_enqueue (uint8_t message, unsigned int dcx_pin);
 
 
 /********************************************************************/
 
-static void spi_enqueue (uint8_t message, unsigned int dcx_pin);
-static spi_queue_item_t *spi_dequeue (void);
-
+/**
+ *  LCD PANEL INITIALISATION CMD SEQUENCE
+ *
+ *  This list of commands is borrowed from the Adafruit ST7789 Arduino library
+ *  which was written by Limor Fried/Ladyada.
+ */
+static const uint8_t st7789_init_cmds [] = {
+    9,                          // 9 commands.
+    SWRESET, CMD_DELAY, 150,    // software reset, 150 ms delay
+    SLPOUT, CMD_DELAY, 10,      // out of sleep mode, 10 ms delay
+    COLMOD, 1 + CMD_DELAY,      // colour mode, 1 arg + delay
+        0x55,                   // 16 bit colour (rgb 565)
+        10,                     // 10 ms delay
+    MADCTL, 1,                  // memory access ctrl
+        0x08,
+    CASET, 4,                   // column addr set, 4 args
+        0,                      // xstart high bits
+        0,                      // xstart low bits
+        0,                      // xend high bits
+        240,                    // xend low bits
+    RASET, 4,                   // row addr set
+        0,                      // ystart high bits
+        0,                      // ystart low bits
+        320 >> 8,               // yend high bits
+        320 & 0xFF,             // yend low bits
+    INVON, CMD_DELAY, 10,       // invert display
+    NORON, CMD_DELAY, 10,       // normal (non-inverted) display
+    DISPON, CMD_DELAY, 10       // main screen on.
+};
 
 /********************************************************************/
 
@@ -53,22 +84,66 @@ static spi_queue_item_t *spi_dequeue (void);
     void
 lcd_init (void)
 {
-    //
-    // Mark all the slots in the spi_queue as free (add them to the free
-    // list).
-    //
-    for (int i = 0; i < SPI_QUEUE_LENGTH; i ++)
-    {
-        spi_queue [i].next = (spi_queue_item_t *) free_list;
-        free_list = spi_queue + i;
-    }
-
     // Set the DCX pin and CS pin to output mode.
     DDRD |= 0x04 | 0x08 | 0x10;
+
+    // Set the pin mode on the MCU SPI MOSI and SCK to OUTPUT. Also set the
+    // SS pin to OUTPUT.
+    DDRB |= (0x04 | 0x08 | 0x20);
 
     // Set the SPI CS pin to HIGH. Once we begin a transfer we will pull it
     // low.
     PORTD |= 0x08 | 0x10;
+
+    display_init (st7789_init_cmds);
+}
+
+/********************************************************************/
+
+/**
+ *  Send the display initialisation commands over the SPI. Note that this
+ *  code is borrowed from the Adafruit ST7789 library by Limor Fried/Ladyada.
+ */
+    static void
+display_init (cmd_list)
+    const uint8_t *cmd_list;
+{
+    uint8_t command, num_args, delay_ms;
+
+    for (uint8_t num_commands = *(cmd_list ++); num_commands > 0; num_commands --)
+    {
+        command = *(cmd_list ++);
+        num_args = *(cmd_list ++);
+        delay_ms = num_args & CMD_DELAY;   // check if the flag is set to indicate a delay
+        num_args &= ~CMD_DELAY;
+        send_command (command, cmd_list, num_args);
+        cmd_list += num_args;
+
+        if (delay_ms != 0)
+        {
+            delay_ms = *(cmd_list ++);
+            _delay_ms (150);
+        }
+    }
+}
+
+/********************************************************************/
+
+/**
+ *  Send a command followed by zero or more parameter bytes over the SPI.
+ */
+    static void
+send_command (cmd, params, num_params)
+    uint8_t cmd;
+    const uint8_t *params;
+    uint8_t num_params;
+{
+    // send the command first
+    spi_enqueue (cmd, DCX_CMD);
+
+    // send the parameters
+    for (; num_params > 0; num_params --)
+        spi_enqueue (*(params ++), DCX_DATA);
 }
 
 /********************************************************************/
@@ -81,7 +156,19 @@ lcd_init (void)
 lcd_fill_colour (colour)
     uint16_t colour;
 {
-    spi_enqueue (CMD_WRITE_RAM, DCX_CMD);
+    spi_enqueue (CASET, DCX_CMD);
+    spi_enqueue (0x00, DCX_DATA);
+    spi_enqueue (0x00, DCX_DATA);
+    spi_enqueue (0, DCX_DATA);
+    spi_enqueue (SCREEN_COLUMNS - 1, DCX_DATA);
+
+    spi_enqueue (RASET, DCX_CMD);
+    spi_enqueue (0x00, DCX_DATA);
+    spi_enqueue (0x00, DCX_DATA);
+    spi_enqueue ((SCREEN_ROWS - 1) >> 8, DCX_DATA);
+    spi_enqueue ((SCREEN_ROWS - 1) & 0xFF, DCX_DATA);
+
+    spi_enqueue (RAMWR, DCX_CMD);
 
     for (int row = 0; row < SCREEN_ROWS; row ++)
     {
@@ -114,110 +201,24 @@ spi_enqueue (message, dcx_pin)
     uint8_t message;
     unsigned int dcx_pin;
 {
-    spi_queue_item_t *queue_slot;
+    // Set the value on the DCX line. This is connected to port D
+    // pin 2.
+    PORTD = (dcx_pin == 1)? (PORTD | 0x04) : (PORTD & 0xFB);
 
-    // Check if the SPI is enabled in the control register
-    if ((SPCR & _BV (SPE)) == 0)
-    {
-        // Set the value on the DCX line. This is connected to port D
-        // pin 2.
-        PORTD = (dcx_pin == 1)? (PORTD | 0x04) : (PORTD & 0xFB);
+    // Pull the CS line LOW
+    PORTD &= ~0x08;
 
-        // Pull the CS line LOW
-        PORTD &= ~0x08;
+    // no transfer in progress.
+    SPCR |= (_BV (SPE) |  _BV (MSTR));
+    SPSR |= 0x01;       // enable double speed SPI
+    SPDR = message;
 
-        // no transfer in progress.
-        SPCR |= (_BV (SPE) | _BV (SPIE) | _BV (MSTR));
-        SPDR = message;
-        return;
-    }
-
-    // busy wait until a queue slot becomes available (in case the queue
-    // is full).
-    while (free_list == NULL)
+    // wait until the SPI transfer is complete
+    while ((SPSR & _BV (SPIF)) == 0)
         ;
 
-    // get the queue slot from the free list and advance the free list
-    queue_slot = (spi_queue_item_t *) free_list;
-    free_list = free_list->next;
-
-    // store the data to transfer, and append the message to the queue tail.
-    queue_slot->data = message;
-    queue_slot->dcx_pin = dcx_pin;
-
-    if (queue_end == NULL)
-    {
-        queue_start = queue_slot;
-        queue_end = queue_slot;
-    }
-    else
-    {
-        queue_end->next = queue_slot;
-        queue_end = queue_slot;
-    }
-}
-
-/********************************************************************/
-
-/**
- *  Fetch the item at the start of the SPI message queue.
- *
- *  If the queue is empty this function will return null.
- *
- *  This function will also remove the item from the start of the queue,
- *  and update the queue start and end item pointers. The removed item will
- *  also be added onto the free list.
- */
-    static spi_queue_item_t *
-spi_dequeue (void)
-{
-    spi_queue_item_t *item;
-
-    // check if the queue is empty.
-    if (queue_start == NULL)
-        return NULL;
-
-    // fetch the item and update the pointers.
-    item = queue_start;
-    queue_start = queue_start->next;
-
-    if (queue_start == NULL)
-        queue_end = NULL;
-
-    // update the free slots list
-    item->next = (spi_queue_item_t *) free_list;
-    free_list = item;
-
-    return item;
-}
-
-/********************************************************************/
-
-/**
- *  Handler for the SPI serial transfer complete IRQ.
- *
- *  Action is to dequeue the next message to send over SPI and place it in
- *  the data register. If the queue is empty, the SPI will be disabled.
- */
-ISR (SPI_STC_vect)
-{
-    spi_queue_item_t *next_message = spi_dequeue ();
-
-    if (next_message != NULL)
-    {
-        PORTD = (next_message->dcx_pin == 1)? (PORTD | 0x04) : (PORTD & 0xFB);
-        SPDR = next_message->data;
-    }
-    else
-    {
-        // clear the SPI enable bit and the interrupt enable bit in the
-        // control register
-        SPCR &= ~(_BV (SPE) | _BV (SPIE));
-
-        // Bring the CS line HIGH to indicate to the LCD controller that
-        // the SPI bus isn't talking to it now.
-        PORTD |= 0x08;
-    }
+    PORTD |= 0x08;
+    SPCR &= ~_BV (SPE);
 }
 
 /********************************************************************/
