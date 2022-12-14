@@ -210,7 +210,6 @@ spi_enqueue (message, dcx_pin)
 
     // no transfer in progress.
     SPCR |= (_BV (SPE) |  _BV (MSTR));
-    SPSR |= 0x01;       // enable double speed SPI
     SPDR = message;
 
     // wait until the SPI transfer is complete
