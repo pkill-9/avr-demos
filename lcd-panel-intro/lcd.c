@@ -6,8 +6,10 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "lcd.h"
+#include "vectors.h"
 
 /********************************************************************/
 
@@ -34,6 +36,9 @@
 static void display_init (const uint8_t *cmd_list);
 static void send_command (uint8_t cmd, const uint8_t *params, uint8_t num_params);
 static void spi_enqueue (uint8_t message, unsigned int dcx_pin);
+static void write_command (uint8_t command);
+static void spi_write32 (uint32_t data);
+static void spi_write16 (uint16_t data);
 
 
 /********************************************************************/
@@ -178,6 +183,152 @@ lcd_fill_colour (colour)
             spi_enqueue (colour & 0x00FF, DCX_DATA);
         }
     }
+}
+
+/********************************************************************/
+
+/**
+ *  Print a line on the LCD panel from the start coordinate to the end, with
+ *  the line coloured with the specified 16 bit value (RGB-565). This function
+ *  does not change the background colour of the panel. If the line crosses
+ *  any other lines, this line will overwrite the other feature.
+ */
+    void
+write_line (start, end, colour)
+    vector_t *start;
+    vector_t *end;
+    uint16_t colour;
+{
+    int16_t dx, dy, err, ystep;
+    vector_t cursor;
+
+    ///////////////////////////////////
+    // The idea is that we will advance the x value one pixel at a time, and
+    // every few pixels advance the y value. If the line is steeper than 1:1
+    // there's a problem because we would need to advance the y value multiple
+    // times for each x value. We solve this by interchanging x and y values
+    // if the line is steep.
+    //
+    bool steep = abs (end->y - start->y) > abs (end->x - start->x);
+
+    if (steep)
+    {
+        swap_axes (start);
+        swap_axes (end);
+        //
+        // Astute readers will have noted that this swap changes the line.
+        // Read on and you will see that we handle steep lines differently
+        // when we draw the pixels, to effectively swap the axes back again.
+    }
+
+    ///////////////////////////////////
+    // We will always increment the x value, so if we're trying to draw a
+    // line with the provided start and end in the wrong direction, we will
+    // swap the start and end so that we can increment x to get to the end
+    // point.
+    if (start->x > end->x)
+        swap_vectors (start, end);
+
+    // keep the change in x and y handy.
+    dx = end->x - start->x;
+    dy = abs (end->y - start->y);
+
+    // handle positive/negative gradient
+    ystep = (start->y < end->y)? 1 : -1;
+
+    for (cursor.x = start->x, cursor.y = start->y; cursor.x <= end->x; cursor.x ++)
+    {
+        ///////////////////////////////
+        // handle the axes swap that we did earlier for steep lines.
+        steep? write_pixel (cursor.y, cursor.x, colour) : write_pixel (cursor.x, cursor.y, colour);
+
+        err -= dy;
+
+        if (err < 0)
+        {
+            cursor.y += ystep;
+            err += dx;
+        }
+    }
+}
+
+/********************************************************************/
+
+/**
+ *  Set the pixel at the given x and y values to the given colour.
+ */
+    void
+write_pixel (x, y, colour)
+    uint16_t x;
+    uint16_t y;
+    uint16_t colour;
+{
+    uint32_t xrange = ((uint32_t) x << 16) | x;
+    uint32_t yrange = ((uint32_t) y << 16) | y;
+
+    write_command (CASET);
+    spi_write32 (xrange);
+
+    write_command (RASET);
+    spi_write32 (yrange);
+
+    write_command (RAMWR);
+    spi_write16 (colour);
+}
+
+/********************************************************************/
+
+    static void
+write_command (command)
+    uint8_t command;
+{
+    // Set the DCX line LOW to indicate a command. DCX must be connected to port D
+    // pin 2.
+    PORTD &= ~0x04;
+    spi_write_byte (command);
+    PORTD |= 0x04
+}
+
+/********************************************************************/
+
+    static void
+spi_write32 (data)
+    uint32_t data;
+{
+    spi_write_byte (data >> 24);
+    spi_write_byte (data >> 16);
+    spi_write_byte (data >> 8);
+    spi_write_byte (data);
+}
+
+/********************************************************************/
+
+    static void
+spi_write16 (data)
+    uint16_t data;
+{
+    spi_write_byte (data >> 8);
+    spi_write_byte (data);
+}
+
+/********************************************************************/
+
+    static void
+spi_write_byte (data)
+    uint8_t data;
+{
+    // Pull the CS line LOW
+    PORTD &= ~0x08;
+
+    SPCR |= (_BV (SPE) |  _BV (MSTR));
+    SPDR = message;
+
+    // wait until the SPI transfer is complete
+    while ((SPSR & _BV (SPIF)) == 0)
+        ;
+
+    PORTD |= 0x08;
+    SPCR &= ~_BV (SPE);
 }
 
 /********************************************************************/
