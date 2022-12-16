@@ -10,6 +10,7 @@
 
 #include "lcd.h"
 #include "vectors.h"
+#include "utils.h"
 
 /********************************************************************/
 
@@ -39,6 +40,7 @@ static void spi_enqueue (uint8_t message, unsigned int dcx_pin);
 static void write_command (uint8_t command);
 static void spi_write32 (uint32_t data);
 static void spi_write16 (uint16_t data);
+static void spi_write_byte (uint8_t data);
 
 
 /********************************************************************/
@@ -286,7 +288,7 @@ write_command (command)
     // pin 2.
     PORTD &= ~0x04;
     spi_write_byte (command);
-    PORTD |= 0x04
+    PORTD |= 0x04;
 }
 
 /********************************************************************/
@@ -321,7 +323,7 @@ spi_write_byte (data)
     PORTD &= ~0x08;
 
     SPCR |= (_BV (SPE) |  _BV (MSTR));
-    SPDR = message;
+    SPDR = data;
 
     // wait until the SPI transfer is complete
     while ((SPSR & _BV (SPIF)) == 0)
