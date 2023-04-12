@@ -197,12 +197,17 @@ lcd_fill_colour (colour)
  */
     void
 write_line (start, end, colour)
-    vector_t *start;
-    vector_t *end;
+    const vector_t *start;
+    const vector_t *end;
     uint16_t colour;
 {
     int16_t dx, dy, err, ystep;
-    vector_t cursor;
+    vector_t cursor, start_pos, end_pos;
+
+    start_pos.x = start->x;
+    start_pos.y = start->y;
+    end_pos.x = end->x;
+    end_pos.y = end->y;
 
     ///////////////////////////////////
     // The idea is that we will advance the x value one pixel at a time, and
@@ -211,12 +216,12 @@ write_line (start, end, colour)
     // times for each x value. We solve this by interchanging x and y values
     // if the line is steep.
     //
-    bool steep = abs (end->y - start->y) > abs (end->x - start->x);
+    bool steep = abs (end_pos.y - start_pos.y) > abs (end_pos.x - start_pos.x);
 
     if (steep)
     {
-        swap_axes (start);
-        swap_axes (end);
+        swap_axes (&start_pos);
+        swap_axes (&end_pos);
         //
         // Astute readers will have noted that this swap changes the line.
         // Read on and you will see that we handle steep lines differently
@@ -228,17 +233,17 @@ write_line (start, end, colour)
     // line with the provided start and end in the wrong direction, we will
     // swap the start and end so that we can increment x to get to the end
     // point.
-    if (start->x > end->x)
-        swap_vectors (start, end);
+    if (start_pos.x > end_pos.x)
+        swap_vectors (&start_pos, &end_pos);
 
     // keep the change in x and y handy.
-    dx = end->x - start->x;
-    dy = abs (end->y - start->y);
+    dx = end_pos.x - start_pos.x;
+    dy = abs (end_pos.y - start_pos.y);
 
     // handle positive/negative gradient
-    ystep = (start->y < end->y)? 1 : -1;
+    ystep = (start_pos.y < end_pos.y)? 1 : -1;
 
-    for (cursor.x = start->x, cursor.y = start->y; cursor.x <= end->x; cursor.x ++)
+    for (cursor.x = start_pos.x, cursor.y = start_pos.y; cursor.x <= end_pos.x; cursor.x ++)
     {
         ///////////////////////////////
         // handle the axes swap that we did earlier for steep lines.

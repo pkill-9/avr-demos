@@ -16,10 +16,9 @@
  *
  */
 
-#include <avr/sleep.h>
-#include <avr/interrupt.h>
 
 #include "lcd.h"
+#include "vectors.h"
 
 /********************************************************************/
 
@@ -36,44 +35,73 @@ const uint16_t colours_list [] = {
 
 #define NUM_COLOURS     19
 
-static volatile int current_colour = 0;
-static volatile int is_new_colour = 0;
-
-
 /********************************************************************/
 
     int
 main (void)
 {
+    vector_t start_point, end_point;
+    int current_colour = 1;
     lcd_init ();
-
-    //
-    // Set timer 1 to generate an interrupt every second
-    //
-    TCCR1B = (TCCR1B & 0xF8) | 0x04;
-    TIMSK1 |= 0x01;
 
     while (1)
     {
-        if (is_new_colour != 0)
+        start_point.x = 0;
+        start_point.y = 0;
+        end_point.x = SCREEN_COLUMNS - 1;
+        end_point.y = SCREEN_ROWS - 1;
+
+        for (int start_row = 0; start_row < SCREEN_ROWS; start_row += 5)
         {
-            lcd_fill_colour (colours_list [current_colour]);
-            is_new_colour = 0;
+            start_point.y = start_row;
+            write_line (&start_point, &end_point, colours_list [current_colour]);
         }
 
-        sei ();
-        sleep_mode ();
+        // start is now at (0, MAX_ROWS), move the end to (0,0)
+        start_point.y = SCREEN_ROWS - 1;
+        end_point.x = 0;
+        end_point.y = 0;
+        current_colour = (++ current_colour < NUM_COLOURS) ? current_colour : 1;
+
+        for (int start_column = 0; start_column < SCREEN_COLUMNS; start_column += 5)
+        {
+            start_point.x = start_column;
+            write_line (&start_point, &end_point, colours_list [current_colour]);
+        }
+
+        // start is now at (MAX_COLUMNS, MAX_ROWS)
+        start_point.x = SCREEN_COLUMNS - 1;
+        start_point.y = SCREEN_ROWS - 1;
+        end_point.x = 0;
+        end_point.y = 0;
+        current_colour = (++ current_colour < NUM_COLOURS) ? current_colour : 1;
+
+        for (int start_row = start_point.y; start_row >= 0; start_row -= 5)
+        {
+            start_point.y = start_row;
+            write_line (&start_point, &end_point, colours_list [current_colour]);
+        }
+
+        // start is now at (MAX_COLUMNS, 0), move the end to (MAX_COLUMNS, MAX_ROWS)
+        start_point.x = SCREEN_COLUMNS - 1;
+        start_point.y = 0;
+        end_point.x = SCREEN_COLUMNS - 1;
+        end_point.y = SCREEN_ROWS - 1;
+        current_colour = (++ current_colour < NUM_COLOURS) ? current_colour : 1;
+
+        for (int start_column = start_point.x; start_column >= 0; start_column -= 5)
+        {
+            start_point.x = start_column;
+            write_line (&start_point, &end_point, colours_list [current_colour]);
+        }
+
+        current_colour = (++ current_colour < NUM_COLOURS) ? current_colour : 1;
+
+        // clear the screen and start again.
+        lcd_fill_colour (colours_list [0]);
     }
 
     return 0;
-}
-
-/********************************************************************/
-
-ISR (TIMER1_OVF_vect)
-{
-    current_colour = (current_colour >= NUM_COLOURS - 1)? 0 : current_colour + 1;
-    is_new_colour = 1;
 }
 
 /********************************************************************/

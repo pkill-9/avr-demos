@@ -7,6 +7,8 @@
 #ifndef _LCD_H
 #define _LCD_H
 
+#include <stdint.h>
+
 #include "vectors.h"
 
 //
@@ -39,7 +41,7 @@
 void lcd_init (void);
 void lcd_fill_colour (uint16_t colour);
 void write_pixel (uint16_t x, uint16_t y, uint16_t colour);
-void write_line (vector_t *start, vector_t *end, uint16_t colour);
+void write_line (const vector_t *start, const vector_t *end, uint16_t colour);
 
 
 #endif // _LCD_H

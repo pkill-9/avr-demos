@@ -9,7 +9,7 @@
 
 typedef struct
 {
-    uint8_t x, y;
+    uint16_t x, y;
 }
 vector_t;
 
