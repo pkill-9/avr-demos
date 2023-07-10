@@ -190,6 +190,25 @@ lcd_fill_colour (colour)
 /********************************************************************/
 
 /**
+ *  Draw a triangle, given the 3 vertex coordinates. Not filled with solid
+ *  colour.
+ */
+    void
+draw_triangle (a, b, c, colour)
+    const vector_t *a, *b, *c;
+    uint16_t colour;
+{
+    ///////////////////////////////////
+    // Draw 3 lines, a to b, b to c, and c to a.
+    //
+    write_line (a, b, colour);
+    write_line (b, c, colour);
+    write_line (c, a, colour);
+}
+
+/********************************************************************/
+
+/**
  *  Print a line on the LCD panel from the start coordinate to the end, with
  *  the line coloured with the specified 16 bit value (RGB-565). This function
  *  does not change the background colour of the panel. If the line crosses

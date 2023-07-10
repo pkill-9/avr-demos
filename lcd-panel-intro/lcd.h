@@ -42,6 +42,7 @@ void lcd_init (void);
 void lcd_fill_colour (uint16_t colour);
 void write_pixel (uint16_t x, uint16_t y, uint16_t colour);
 void write_line (const vector_t *start, const vector_t *end, uint16_t colour);
+void draw_triangle (const vector_t *a, const vector_t *b, const vector_t *c, uint16_t colour);
 
 
 #endif // _LCD_H

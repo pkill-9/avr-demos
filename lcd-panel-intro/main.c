@@ -38,6 +38,7 @@ const uint16_t colours_list [] = {
 /********************************************************************/
 
 static void demo_lines (void);
+static void demo_triangles (void);
 
 /********************************************************************/
 
@@ -49,9 +50,60 @@ main (void)
     while (1)
     {
         demo_lines ();
+        //demo_triangles ();
     }
 
     return 0;
+}
+
+/********************************************************************/
+
+/**
+ *  Demo triangle drawing function.
+ */
+    static void
+demo_triangles (void)
+{
+    vector_t a, b, c;
+    uint8_t current_colour = 0;
+
+    lcd_fill_colour (colours_list [0]);
+
+    for (int16_t i = 0; i <= SCREEN_COLUMNS; i += 24)
+    {
+        a.x = i;
+        a.y = 0;
+        b.x = 0;
+        b.y = SCREEN_ROWS - i;
+        c.x = SCREEN_COLUMNS - i;
+        c.y = SCREEN_ROWS;
+        draw_triangle (&a, &b, &c, colours_list [current_colour]);
+        current_colour = (++ current_colour > NUM_COLOURS)? 1 : current_colour;
+    }
+
+    for (int16_t i = 0; i < SCREEN_COLUMNS; i += 24)
+    {
+        a.x = SCREEN_ROWS;
+        a.y = i * 4 / 3;
+        b.x = 0;
+        b.y = SCREEN_COLUMNS - i * 4 / 3;
+        c.x = i;
+        c.y = 0;
+        draw_triangle (&a, &b, &c, colours_list [current_colour]);
+        current_colour = (++ current_colour > NUM_COLOURS)? 1 : current_colour;
+    }
+
+    for (int16_t i = 0; i < SCREEN_COLUMNS; i += 24)
+    {
+        a.x = SCREEN_ROWS;
+        a.y = i * 4 / 3;
+        b.x = i;
+        b.y = 0;
+        c.x = SCREEN_ROWS - i;
+        c.y = SCREEN_COLUMNS;
+        draw_triangle (&a, &b, &c, colours_list [current_colour]);
+        current_colour = (++ current_colour > NUM_COLOURS)? 1 : current_colour;
+    }
 }
 
 /********************************************************************/
