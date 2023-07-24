@@ -163,27 +163,64 @@ send_command (cmd, params, num_params)
 lcd_fill_colour (colour)
     uint16_t colour;
 {
-    spi_enqueue (CASET, DCX_CMD);
-    spi_enqueue (0x00, DCX_DATA);
-    spi_enqueue (0x00, DCX_DATA);
-    spi_enqueue (0, DCX_DATA);
-    spi_enqueue (SCREEN_COLUMNS - 1, DCX_DATA);
+    vector_t origin, top;
 
+    origin.x = 0;
+    origin.y = 0;
+    top.x = SCREEN_COLUMNS - 1;
+    top.y = SCREEN_ROWS - 1;
+
+    set_display_window (&origin, &top);
+
+    for (int i = 0; i < SCREEN_ROWS; i ++)
+    {
+        write_colour (colour, SCREEN_COLUMNS);
+    }
+}
+
+/********************************************************************/
+
+/**
+ *  Set the area of the display being used. Two points must be provided,
+ *  which define a rectangular area of the display.
+ */
+    void
+set_display_window (lower_left, upper_right)
+    const vector_t *lower_left, *upper_right;
+{
+    // get the range of columns being used from the x values.
+    // Starting column is from lower left, end column from upper right.
+    spi_enqueue (CASET, DCX_CMD);
+    spi_enqueue ((lower_left->x) >> 8, DCX_DATA);
+    spi_enqueue ((lower_left->x) & 0xFF, DCX_DATA);
+    spi_enqueue ((upper_right->x) >> 8, DCX_DATA);
+    spi_enqueue ((upper_right->x) & 0xFF, DCX_DATA);
+
+    // Same principle to get the window of rows we're using; it comes from the
+    // y values in the specified points.
     spi_enqueue (RASET, DCX_CMD);
-    spi_enqueue (0x00, DCX_DATA);
-    spi_enqueue (0x00, DCX_DATA);
-    spi_enqueue ((SCREEN_ROWS - 1) >> 8, DCX_DATA);
-    spi_enqueue ((SCREEN_ROWS - 1) & 0xFF, DCX_DATA);
+    spi_enqueue ((lower_left->y) >> 8, DCX_DATA);
+    spi_enqueue ((lower_left->y) & 0xFF, DCX_DATA);
+    spi_enqueue ((upper_right->y) >> 8, DCX_DATA);
+    spi_enqueue ((upper_right->y) & 0xFF, DCX_DATA);
 
     spi_enqueue (RAMWR, DCX_CMD);
+}
 
-    for (int row = 0; row < SCREEN_ROWS; row ++)
+/********************************************************************/
+
+/**
+ *  Write colour pixels to the display.
+ */
+    void
+write_colour (colour, pixel_count)
+    uint16_t colour;
+    uint32_t pixel_count;
+{
+    for (uint32_t i = 0; i < pixel_count; i ++)
     {
-        for (int col = 0; col < SCREEN_COLUMNS; col ++)
-        {
-            spi_enqueue (colour >> 8, DCX_DATA);
-            spi_enqueue (colour & 0x00FF, DCX_DATA);
-        }
+        spi_enqueue (colour >> 8, DCX_DATA);
+        spi_enqueue (colour & 0xFF, DCX_DATA);
     }
 }
 
