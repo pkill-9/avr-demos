@@ -31,6 +31,15 @@ main (void)
     cursor.x = 120;
     cursor.y = 160;
 
+    DDRD &= ~0xC0;
+    PORTD |= 0xC0;
+    DDRB &= ~0x06;
+    PORTB |= 0x06;
+
+    PCICR |= (_BV (PCINT2) | _BV (PCINT0));
+    PCMSK2 |= _BV (PCINT23);
+    PCMSK0 |= _BV (PCINT1);
+
     for (;;)
     {
         if (x_change == 0 && y_change == 0)
@@ -73,7 +82,7 @@ main (void)
 
             // check if it's turned clockwise or counter clockwise by XORing
             // the two channels.
-            if ((y_rotary & 0x02) != (y_rotary & 0x04) << 1)
+            if ((y_rotary & 0x04) != (y_rotary & 0x02) << 1)
             {
                 // counter clockwise
                 cursor.x ++;
@@ -101,14 +110,14 @@ main (void)
 
 ISR (PCINT0_vect)
 {
-    x_change = 1;
+    y_change = 1;
 }
 
 /********************************************************************/
 
 ISR (PCINT2_vect)
 {
-    y_change = 1;
+    x_change = 1;
 }
 
 /********************************************************************/
