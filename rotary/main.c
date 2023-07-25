@@ -14,6 +14,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
+#include <util/delay.h>
 #include <stddef.h>
 
 #include "uart.h"
@@ -34,7 +35,7 @@ static volatile int pin_changed = 0;
     int
 main (void)
 {
-    uint8_t pin_states;
+    uint8_t pin_states, new_states;
 
     uart_init (9600);
 
@@ -48,7 +49,7 @@ main (void)
     // Enable the two pin change interrupts, PCINT22 and PCINT23.
     //
     PCICR |= _BV (PCIE2);
-    PCMSK2 |= (_BV (PCINT22) | _BV (PCINT23));
+    PCMSK2 |= (_BV (PCINT23));
 
     for (;;)
     {
@@ -59,18 +60,28 @@ main (void)
             continue;
         }
 
+        _delay_ms (5);
         pin_changed = 0;
 
         ///////////////////////////////
         // Get the states of the rotary encoder pins, and print the details
         // over the uart.
         //
-        pin_states = PIND;
-        transmit_string ("Channel A state: ");
-        transmit_int ((pin_states & _BV (PIND7))? 1 : 0);
-        transmit_string ("; \tChannel B state: ");
-        transmit_int ((pin_states & _BV (PIND6))? 1 : 0);
-        transmit_string ("\r\n");
+        new_states = PIND;
+
+        if (new_states == pin_states)
+            continue;
+
+        pin_states = new_states;
+
+        if ((pin_states & 0x80) != (pin_states & 0x40) << 1)
+        {
+            transmit_string ("CLOCKWISE\r\n");
+        }
+        else
+        {
+            transmit_string ("COUNTER-CLOCKWISE\r\n");
+        }
     }
 
     return 0;
