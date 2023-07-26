@@ -14,6 +14,7 @@
 
 #include "vectors.h"
 #include "uart.h"
+#include "lcd.h"
 
 
 static volatile int x_change = 0, y_change = 0;
@@ -23,13 +24,18 @@ static volatile int x_change = 0, y_change = 0;
     int
 main (void)
 {
-    vector_t cursor;
+    vector_t cursor, origin;
     uint8_t x_rotary, y_rotary;
 
     uart_init (9600);
 
+    lcd_init ();
+    lcd_fill_colour (COLOUR_BLACK);
+
     cursor.x = 120;
     cursor.y = 160;
+    origin.x = 0;
+    origin.y = 0;
 
     DDRD &= ~0xC0;
     PORTD |= 0xC0;
@@ -101,6 +107,9 @@ main (void)
         transmit_string ("; y: ");
         transmit_int (cursor.y);
         transmit_string ("\r\n");
+
+        //write_pixel (&cursor, COLOUR_CYAN);
+        write_line (&origin, &cursor, COLOUR_CYAN);
     }
 
     return 0;
