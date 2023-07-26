@@ -77,6 +77,8 @@ main (void)
                 cursor.x ++;
                 cursor.y ++;
             }
+
+            write_pixel (&cursor, COLOUR_CYAN);
         }
 
         if (y_change)
@@ -100,6 +102,8 @@ main (void)
                 cursor.x --;
                 cursor.y ++;
             }
+
+            write_pixel (&cursor, COLOUR_CYAN);
         }
 
         transmit_string ("x: ");
@@ -107,9 +111,6 @@ main (void)
         transmit_string ("; y: ");
         transmit_int (cursor.y);
         transmit_string ("\r\n");
-
-        //write_pixel (&cursor, COLOUR_CYAN);
-        write_line (&origin, &cursor, COLOUR_CYAN);
     }
 
     return 0;
