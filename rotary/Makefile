@@ -97,7 +97,7 @@ LIBS=
 
 # Optimization level, 
 # use s (size opt), 1, 2, 3 or 0 (off)
-OPTLEVEL=1
+OPTLEVEL=s
 
 
 #####      AVR Dude 'writeflash' options       #####
@@ -167,7 +167,7 @@ LDFLAGS=-Wl,-gc-sections,-Map,$(TRG).map -mmcu=$(MCU) -flto -O$(OPTLEVEL) -L/usr
 CC=avr-gcc
 OBJCOPY=avr-objcopy
 OBJDUMP=avr-objdump
-SIZE=avr-size
+SIZE=avr-size --format avr --mcu ${MCU}
 AVRDUDE=avrdude
 REMOVE=rm -f
 
