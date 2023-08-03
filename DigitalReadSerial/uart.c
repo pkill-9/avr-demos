@@ -1,20 +1,60 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/sleep.h>
 #include <string.h>
 
 #include "uart.h"
 
 #define BUFFER_LENGTH 32
 
-struct buffer
+/********************************************************************/
+
+// Each message could contain different data; either a string or an int.
+union message_data
 {
-    const char *messages [BUFFER_LENGTH];
-    int data_length;
-    int head_pos;
-    int tail_pos;
+    const char *text;
+    int number;
 };
 
-struct buffer transmit_queue;
+// each item in the transmit queue consists of the message data, and a
+// pointer to a function to handle printing it. The function that prints the
+// value will indicate if it has finished printing the data (all chars in a
+// string, or all digits in an int) by returning 1 (finished) or 0 (more to
+// go).
+struct queue_item
+{
+    union message_data data;
+    int (*transmit_function) (union message_data *data);
+    struct queue_item *next;
+};
+
+
+// global vars.
+//
+// First, the transmit queue structure.
+static struct queue_item transmit_queue [BUFFER_LENGTH];
+
+static struct queue_item *head, *tail;
+static struct queue_item *free_list;
+
+// global int used as a mask to select the next digit to print.
+static volatile int digit_mask;
+
+// This string is used to map a digit to a character
+static const char *digit_map = "0123456789ABCDEF";
+
+// variable to hold a byte received from the UART hardware, and a flag variable
+// tp indicate that data was received.
+static volatile char received_data;
+static volatile uint8_t got_char;
+
+/********************************************************************/
+
+static struct queue_item *allocate_item (void);
+static int string_transmit_handler (union message_data *data);
+static int integer_transmit_handler (union message_data *data);
+static void enqueue (struct queue_item *item);
+static struct queue_item *dequeue (void);
 
 /********************************************************************/
 
@@ -46,42 +86,35 @@ uart_init (baud_rate)
     UBRR0L = (unsigned char) (baud_counter);
 
     // USART Control Register B bits:
-    // 0 0 0 0 1 0 0 0
-    // - don't enable interrupts. Only UDRE is used, and it doesn't need to
-    //   be enabled yet.
-    // - enable the transmitter to send data, leave the receiver disabled.
-    UCSR0B = 0x08;
+    // 1 0 0 1 1 0 0 0
+    // - enable the RX complete interrupt, but leave the UDRE interrupt disabled.
+    // - enable the transmitter and receiver.
+    UCSR0B = 0x98;
 
     // The reset value for UCSR0C is set to 8 bit frames, which we will use.
     // Set it to send two stop bits.
     UCSR0C |= 0x08;
 
-    // Initialise the head and tail positions for the tx and rx queues, and
-    // make sure their lengths are zero to begin with.
-    transmit_queue.head_pos = 0;
-    transmit_queue.tail_pos = 0;
-    transmit_queue.data_length = 0;
+    // Initialise the transmit queue.
+    head = NULL;
+    tail = NULL;
+    free_list = NULL;
+
+    // all of the queue items are in the free list to begin with.
+    for (int i = 0; i < BUFFER_LENGTH; i ++)
+    {
+        transmit_queue [i].next = free_list;
+        free_list = transmit_queue + i;
+    }
+
+    // set the digit mask to zero
+    digit_mask = 0;
+
+    received_data = 0;
+    got_char = 0;
 
     // enable interrupts now that configuration is done.
     sei ();
-}
-
-/********************************************************************/
-
-/**
- *  Transmit a byte of data from the MCU to another device via the USART.
- *  We use interrupt driven operation, so this function will simply add the
- *  byte to a transmit queue. The Data Register Empty ISR will handle the
- *  task of passing the data to the USART hardware.
- *
- *  If there is no other data in the transmit queue, this function will 
- *  enable the UDRE interrupt.
- */
-    void
-transmit_byte (byte)
-    char byte;
-{
-    // not implemented
 }
 
 /********************************************************************/
@@ -96,18 +129,19 @@ transmit_byte (byte)
 transmit_string (message)
     const char *message;        // pointer to the string to transmit
 {
-    // First, check if the transmit queue is full.
-    if (transmit_queue.data_length == BUFFER_LENGTH)
+    struct queue_item *next_item = allocate_item ();
+
+    // if the buffer is full, return 0.
+    if (next_item == NULL)
         return 0;
 
-    // Add the new message to the tail of the queue, and advance the tail
-    // index by one place.
-    transmit_queue.messages [transmit_queue.tail_pos] = message;
-    transmit_queue.tail_pos ++;
-    transmit_queue.tail_pos %= BUFFER_LENGTH;
+    // Add the message string pointer, and set the correct function to handle
+    // printing it.
+    next_item->data.text = message;
+    next_item->transmit_function = &(string_transmit_handler);
 
-    // increment the count of messages awaiting transmission.
-    transmit_queue.data_length ++;
+    // enqueue the new item to the tail.
+    enqueue (next_item);
 
     // enable the UDRE interrupt by setting bit 5 in the UCSR0B register,
     // since it would be disabled if transmission isn't in progress.
@@ -119,16 +153,242 @@ transmit_string (message)
 /********************************************************************/
 
 /**
- *  Receive a byte from the USART hardware.
+ *  Convert an integer to a decimal string representation, and transmit the
+ *  characters on the USART lines.
+ */
+    size_t
+transmit_int (value)
+    int value;
+{
+    struct queue_item *next_item = allocate_item ();
+
+    if (next_item == NULL)
+        return 0;
+
+    // add the transmit_int message to the end of the queue.
+    next_item->data.number = value;
+    next_item->transmit_function = &(integer_transmit_handler);
+    enqueue (next_item);
+
+    return sizeof (int);
+}
+
+/********************************************************************/
+
+/**
+ *  Add an item to the end of the transmit queue. If the queue is empty, the
+ *  new item becomes the head and tail, otherwise it becomes the new tail
+ */
+    static void
+enqueue (item)
+    struct queue_item *item;
+{
+    item->next = NULL;
+
+    if (head == NULL)
+    {
+        head = item;
+        tail = item;
+
+        // No transmit in progress, so enable the interrupt for USART data
+        // register empty.
+        UCSR0B |= _BV (UDRIE0);
+    }
+    else
+    {
+        tail->next = item;
+        tail = item;
+    }
+}
+
+/********************************************************************/
+
+/**
+ *  Remove an item from the head of the transmit queue.
  *
- *  If the receive queue is empty (no data yet received), this function will
- *  put the MCU into a low power mode until data becomes available in the
- *  buffer.
+ *  If the queue becomes empty, set both head and tail pointers to null.
+ *
+ *  Return null if the queue is already empty.
+ */
+    static struct queue_item *
+dequeue (void)
+{
+    struct queue_item *oldhead = head;
+
+    if (head == NULL)
+        return NULL;
+
+    if (oldhead->next == NULL)
+    {
+        // no more items in the list
+        tail = NULL;
+    }
+
+    head = head->next;
+
+    return oldhead;
+}
+
+/********************************************************************/
+
+/**
+ *  Wait for the next character to be received via the USART hardware.
+ *  NOTE: this function cannot be called from within an ISR, as it makes use
+ *  of sleep mode.
+ *
+ *  Return value is the received character.
  */
     char
-receive_byte (void)
+uart_getchar (void)
 {
-    return '0';
+    got_char = 0;
+
+    // Now put the MCU to sleep until we receive a char.
+    while (got_char != 1)
+    {
+        sei ();
+        sleep_mode ();
+    }
+
+    return received_data;
+}
+
+/********************************************************************/
+
+/**
+ *  Read data from USART, line oriented.
+ *
+ *  This function will accept bytes from the USART hardware, storing them in a
+ *  buffer specified by the caller until either 1) a newline \n character is
+ *  received; or 2) the buffer is filled.
+ *
+ *  The data in the buffer will be terminated by a null byte, and will include
+ *  the newline character (if it is received).
+ *
+ *  Return value is the number of bytes stored in the buffer.
+ */
+    size_t
+uart_getline (buffer, max_length)
+    char *buffer;
+    size_t max_length;
+{
+    size_t bytes_read = 0;
+
+    // keep reading bytes until either a null byte, or the buffer is full.
+    while ((*buffer = uart_getchar()) != '\r' && max_length > 1)
+    {
+        max_length --;
+        buffer ++;
+        bytes_read ++;
+    }
+
+    // place a terminating null byte after the byte just read
+    *(buffer + 1) = '\0';
+
+    return bytes_read;
+}
+
+/********************************************************************/
+
+/**
+ *  Fetch the next available slot in the transmit buffer. If the buffer is
+ *  full, this function will return null.
+ */
+    static struct queue_item *
+allocate_item (void)
+{
+    struct queue_item *next_item = free_list;
+
+    // First, check if the transmit queue is full.
+    if (next_item == NULL)
+        return NULL;
+
+    // Advance the free list to the next item
+    free_list = free_list->next;
+
+    return next_item;
+}
+
+/********************************************************************/
+
+/**
+ *  This function is called from the UDRE ISR, and handles printing the next
+ *  character of a string to the USART hardware. If we have reached the null
+ *  byte at the end of the string, this function returns 1. If not, we
+ *  return 0 to indicate there are more chars to print.
+ *
+ *  Note that we are given a pointer to the message data union, so that we
+ *  can advance the string to the next character.
+ */
+    static int
+string_transmit_handler (data)
+    union message_data *data;   // pointer to the message data.
+{
+    // check if the current char is a null byte
+    if (*(data->text) == '\0')
+        return 1;
+
+    // pass the next char to the USART hardware by writing to the UDR0
+    // register and advance the string to the next char.
+    UDR0 = *(data->text);
+    data->text ++;
+
+    return 0;
+}
+
+/********************************************************************/
+
+/**
+ *  This function is called from the UDRE ISR. It handles printing the next
+ *  digit of the number, and updating the mask and number.
+ *
+ *  Return value is 1 if we have finished printing all digits.
+ */
+    static int
+integer_transmit_handler (data)
+    union message_data *data;
+{
+    uint8_t next_digit;
+
+    // handle printing the - sign for a negative int.
+    if (data->number < 0)
+    {
+        UDR0 = '-';
+        data->number *= -1;
+        return 0;
+    }
+
+    // the mask variable will be zero if this is the first digit being printed.
+    // In that case, set it to select the left most decimal digit.
+    // Note that ints are 16 bits long, range -32,768 to 32,767
+    if (digit_mask == 0)
+    {
+        digit_mask = 10000;
+
+        // find the most significant digit by repeatedly dividing the mask by
+        // 10.
+        while (data->number / digit_mask == 0)
+            digit_mask /= 10;
+    }
+
+    // Get the next digit by integer division with the mask, then the
+    // remaining digits still to be printed is obtained by modulo division.
+    if (digit_mask != 0)
+    {
+        next_digit = data->number / digit_mask;
+        data->number %= digit_mask;
+        digit_mask /= 10;
+    }
+    else
+    {
+        next_digit = data->number;
+    }
+
+    // convert the digit to a character, and store it in the USART data
+    // register.
+    UDR0 = digit_map [next_digit];
+
+    return (digit_mask == 0? 1 : 0);
 }
 
 /********************************************************************/
@@ -143,53 +403,45 @@ receive_byte (void)
  */
 ISR (USART_UDRE_vect)
 {
-    // Check if there's data available in the transmit queue.
-    if (transmit_queue.data_length > 0)
-    {
-        // Check if we've reached the end of the string for the current message
-        // being transmitted.
-        //
-        // Note that when we reach the null byte, we just advance the head_pos
-        // to the next slot. That slot may have another message to transmit,
-        // or it may be empty, depending on the data_length. After we exit the
-        // ISR, the ISR will be invoked again straight away (because the UDRE
-        // flag is still set), and then we can sort out if there's another
-        // message to send or not.
-        if (*(transmit_queue.messages [transmit_queue.head_pos]) != '\0')
-        {
-            // copy the next byte from the message into the USART data
-            // register
-            UDR0 = *(transmit_queue.messages [transmit_queue.head_pos]);
+    struct queue_item *current_item;
 
-            // Advance the pointer to the next byte of the string.
-            transmit_queue.messages [transmit_queue.head_pos] ++;
-        }
-        else
+    // Check if there's data available in the transmit queue.
+    if (head != NULL)
+    {
+        current_item = head;
+
+        // Invoke the function pointer to print the next character of the
+        // output, and check if the function indicates this item is finished.
+        // The transmit_function is responsible for advancing to the next
+        // char of the string, or next digit of an int.
+        if (current_item->transmit_function (&(current_item->data)) == 1)
         {
-            transmit_queue.head_pos ++;
-            transmit_queue.head_pos %= BUFFER_LENGTH;
-            transmit_queue.data_length --;
+            // remove from the head of the queue, and insert to the free list.
+            current_item = dequeue ();
+            current_item->next = free_list;
+            free_list = current_item;
         }
     }
     else
     {
         // nothing to transmit, so disable the UDRE interrupt.
-        UCSR0B &= ~0x20;
+        UCSR0B &= ~ _BV (UDRIE0);
     }
 }
 
 /********************************************************************/
 
 /**
- *  USART Receive Complete interrupt handler.
+ *  USART RX Complete interrupt handler.
  *
- *  Invoked when the USART hardware has finished receiving a frame.
- *  Action taken is to check the status register for any error flags, and
- *  if all is good transfer the received byte from the data register to our
- *  receive buffer.
+ *  This is invoked once the USART hardware has received a byte. The action
+ *  performed is to read the data from the USART data register (which clears
+ *  the interrupt) and store the value in a global variable.
  */
 ISR (USART_RX_vect)
 {
+    received_data = UDR0;
+    got_char = 1;
 }
 
 /********************************************************************/

@@ -8,11 +8,14 @@
 #define _UART_H
 
 #include <string.h>
+#include <stdint.h>
 
 void uart_init (unsigned long baud_rate);
-void transmit_byte (char byte);
-char receive_byte (void);
 size_t transmit_string (const char *message);
+size_t transmit_int (int value);
+
+char uart_getchar (void);
+size_t uart_getline (char *buffer, size_t max_length);
 
 #endif // _UART_H
 

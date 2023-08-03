@@ -30,23 +30,27 @@ main (void)
     // initialise the USART hardware.
     uart_init (9600);
 
+    // enable the internal pull up resistor for port D pin 2.
+    DDRD |= _BV (DDD2);
+    PORTD |= _BV (PORTD2);
+
     // We have the signal from the push button going to pin 4 on the 328P,
     // which corresponds to PCINT18 / port D pin 2.
     // The pin is set to input on reset.
     // First step is to enable the pin change interrupt in the PC mask
     // register.
-    PCMSK2 |= 0x04;
+    PCMSK2 |= _BV (PCINT18);
 
     // now we need to enable pin change interrupt 2 (which handles PCINT 16 
     // to 23).
-    PCICR |= 0x04;
+    PCICR |= _BV (PCIE2);
 
     // Set port B pin 2 to output, to display the button state.
     DDRB |= 0x20;
     PORTB = 0x00;
 
     // now we go into low power state.
-    while (1)
+    for (;;)
     {
         sei ();
         sleep_mode ();
