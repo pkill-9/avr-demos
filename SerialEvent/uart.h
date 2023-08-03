@@ -13,7 +13,6 @@
 void uart_init (unsigned long baud_rate);
 size_t transmit_string (const char *message);
 size_t transmit_int (int value);
-uint8_t tx_slots_free (void);
 
 char uart_getchar (void);
 size_t uart_getline (char *buffer, size_t max_length);
