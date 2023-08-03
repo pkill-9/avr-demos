@@ -12,6 +12,10 @@ static void transmit_results (unsigned int conversion_results);
 
 /********************************************************************/
 
+static volatile int refresh_results = 0;
+
+/********************************************************************/
+
 /**
  *  ARDUINO ANALOG READ SERIAL DEMO IN C
  *
@@ -44,6 +48,12 @@ main (void)
     // an interrupt).
     while (1)
     {
+        if (refresh_results)
+        {
+            analog_read (0);
+            refresh_results = 0;
+        }
+
         sei ();
         sleep_mode ();
     }
