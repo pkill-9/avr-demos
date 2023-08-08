@@ -22,10 +22,10 @@ lcd_fill_colour (colour)
 {
     vector_t origin, top;
 
-    origin.x = 0;
-    origin.y = 0;
-    top.x = SCREEN_COLUMNS - 1;
-    top.y = SCREEN_ROWS - 1;
+    origin.row = 0;
+    origin.column = 0;
+    top.row = SCREEN_ROWS - 1;
+    top.column = SCREEN_COLUMNS - 1;
 
     set_display_window (&origin, &top);
 
@@ -71,19 +71,19 @@ write_line (start, end, colour)
     int16_t dx, dy, err, ystep;
     vector_t cursor, steep_cursor, start_pos, end_pos;
 
-    start_pos.x = start->x;
-    start_pos.y = start->y;
-    end_pos.x = end->x;
-    end_pos.y = end->y;
+    start_pos.row = start->row;
+    start_pos.column = start->column;
+    end_pos.row = end->row;
+    end_pos.column = end->column;
 
     ///////////////////////////////////
-    // The idea is that we will advance the x value one pixel at a time, and
-    // every few pixels advance the y value. If the line is steeper than 1:1
+    // The idea is that we will advance the x/column value one pixel at a time, and
+    // every few pixels advance the y/row value. If the line is steeper than 1:1
     // there's a problem because we would need to advance the y value multiple
     // times for each x value. We solve this by interchanging x and y values
     // if the line is steep.
     //
-    bool steep = abs (end_pos.y - start_pos.y) > abs (end_pos.x - start_pos.x);
+    bool steep = abs (end_pos.row - start_pos.row) > abs (end_pos.column - start_pos.column);
 
     if (steep)
     {
@@ -100,24 +100,24 @@ write_line (start, end, colour)
     // line with the provided start and end in the wrong direction, we will
     // swap the start and end so that we can increment x to get to the end
     // point.
-    if (start_pos.x > end_pos.x)
+    if (start_pos.column > end_pos.column)
         swap_vectors (&start_pos, &end_pos);
 
     // keep the change in x and y handy.
-    dx = end_pos.x - start_pos.x;
-    dy = abs (end_pos.y - start_pos.y);
+    dx = end_pos.column - start_pos.column;
+    dy = abs (end_pos.row - start_pos.row);
 
     // handle positive/negative gradient
-    ystep = (start_pos.y < end_pos.y)? 1 : -1;
+    ystep = (start_pos.row < end_pos.row)? 1 : -1;
 
-    for (cursor.x = start_pos.x, cursor.y = start_pos.y; cursor.x <= end_pos.x; cursor.x ++)
+    for (cursor.column = start_pos.column, cursor.row = start_pos.row; cursor.column <= end_pos.column; cursor.column ++)
     {
         ///////////////////////////////
         // handle the axes swap that we did earlier for steep lines.
         if (steep)
         {
-            steep_cursor.x = cursor.y;
-            steep_cursor.y = cursor.x;
+            steep_cursor.column = cursor.row;
+            steep_cursor.row = cursor.column;
             write_pixel (&steep_cursor, colour);
         }
         else
@@ -129,7 +129,7 @@ write_line (start, end, colour)
 
         if (err < 0)
         {
-            cursor.y += ystep;
+            cursor.row += ystep;
             err += dx;
         }
     }

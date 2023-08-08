@@ -34,8 +34,8 @@ main (void)
     vector_t top, bottom;
     int current_colour = 1;
 
-    bottom.x = 5;
-    bottom.y = 5;
+    bottom.row = 5;
+    bottom.column = 5;
 
     lcd_init ();
     lcd_fill_colour (0);
@@ -63,26 +63,26 @@ main (void)
             timer_interrupt = 0;
         }
 
-        top.x = bottom.x + 9;
-        top.y = bottom.y + 9;
+        top.column = bottom.column + 9;
+        top.row = bottom.row + 9;
 
         set_display_window (&bottom, &top);
         write_colour (colours_list [current_colour], 10 * 10);
 
-        bottom.x += 20;
+        bottom.column += 20;
 
         // make sure the rectangle is still in bounds
-        if (bottom.x + 10 > SCREEN_COLUMNS)
+        if (bottom.column + 10 > SCREEN_COLUMNS)
         {
-            bottom.x = 5;
-            bottom.y += 20;
+            bottom.column = 5;
+            bottom.row += 20;
         }
 
-        if (bottom.y + 10 > SCREEN_ROWS)
+        if (bottom.row + 10 > SCREEN_ROWS)
         {
             lcd_fill_colour (0);
-            bottom.x = 5;
-            bottom.y = 5;
+            bottom.column = 5;
+            bottom.row = 5;
             continue;
         }
 

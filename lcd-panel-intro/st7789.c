@@ -197,14 +197,14 @@ set_display_window (lower_left, upper_right)
     // get the range of columns being used from the x values.
     // Starting column is from lower left, end column from upper right.
     write_command (CASET);
-    spi_write16 (lower_left->x);
-    spi_write16 (upper_right->x);
+    spi_write16 (lower_left->column);
+    spi_write16 (upper_right->column);
 
     // Same principle to get the window of rows we're using; it comes from the
     // y values in the specified points.
     write_command (RASET);
-    spi_write16 (lower_left->y);
-    spi_write16 (upper_right->y);
+    spi_write16 (lower_left->row);
+    spi_write16 (upper_right->row);
 
     write_command (RAMWR);
 }

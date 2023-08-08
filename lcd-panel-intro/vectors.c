@@ -15,9 +15,9 @@
 swap_axes (v)
     vector_t *v;
 {
-    uint16_t temp = v->x;
-    v->x = v->y;
-    v->y = temp;
+    uint16_t temp = v->row;
+    v->row = v->column;
+    v->column = temp;
 }
 
 /********************************************************************/
@@ -33,13 +33,13 @@ swap_vectors (a, b)
 {
     uint16_t temp;
 
-    temp = a->x;
-    a->x = b->x;
-    b->x = temp;
+    temp = a->row;
+    a->row = b->row;
+    b->row = temp;
 
-    temp = a->y;
-    a->y = b->y;
-    b->y = temp;
+    temp = a->column;
+    a->column = b->column;
+    b->column = temp;
 }
 
 /********************************************************************/

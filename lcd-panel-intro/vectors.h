@@ -9,7 +9,7 @@
 
 typedef struct
 {
-    uint16_t x, y;
+    uint16_t row, column;
 }
 vector_t;
 
