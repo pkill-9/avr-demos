@@ -57,6 +57,9 @@ draw_triangle (a, b, c, colour)
  *  the line coloured with the specified 16 bit value (RGB-565). This function
  *  does not change the background colour of the panel. If the line crosses
  *  any other lines, this line will overwrite the other feature.
+ *
+ *  This function uses Bresenham's algorithm to draw a straight line on a
+ *  raster graphics display. https://en.wikipedia.org/wiki/Bresenham's_line_algorithm
  */
     void
 write_line (start, end, colour)
@@ -64,69 +67,43 @@ write_line (start, end, colour)
     const vector_t *end;
     uint16_t colour;
 {
-    int16_t dx, dy, err, ystep;
-    vector_t cursor, steep_cursor, start_pos, end_pos;
+    vector_t cursor;
+    int16_t column_interval = abs (start->column - end->column);
+    int8_t column_step = start->column < end->column ? 1 : -1;
+    int16_t row_interval = -1 * abs (start->row - end->row);
+    int8_t row_step = start->row < end->row ? 1 : -1;
+    int16_t error = column_interval + row_interval;
+    int16_t e2;
 
-    start_pos.row = start->row;
-    start_pos.column = start->column;
-    end_pos.row = end->row;
-    end_pos.column = end->column;
+    cursor.row = start->row;
+    cursor.column = start->column;
 
-    ///////////////////////////////////
-    // The idea is that we will advance the x/column value one pixel at a time, and
-    // every few pixels advance the y/row value. If the line is steeper than 1:1
-    // there's a problem because we would need to advance the y value multiple
-    // times for each x value. We solve this by interchanging x and y values
-    // if the line is steep.
-    //
-    bool steep = abs (end_pos.row - start_pos.row) > abs (end_pos.column - start_pos.column);
-
-    if (steep)
+    for (;;)
     {
-        swap_axes (&start_pos);
-        swap_axes (&end_pos);
-        //
-        // Astute readers will have noted that this swap changes the line.
-        // Read on and you will see that we handle steep lines differently
-        // when we draw the pixels, to effectively swap the axes back again.
-    }
+        write_pixel (&cursor, colour);
 
-    ///////////////////////////////////
-    // We will always increment the x value, so if we're trying to draw a
-    // line with the provided start and end in the wrong direction, we will
-    // swap the start and end so that we can increment x to get to the end
-    // point.
-    if (start_pos.column > end_pos.column)
-        swap_vectors (&start_pos, &end_pos);
+        // check if we've reached the end of the line, and terminate the loop.
+        if (cursor.column == end->column && cursor.row == end->row)
+            break;
 
-    // keep the change in x and y handy.
-    dx = end_pos.column - start_pos.column;
-    dy = abs (end_pos.row - start_pos.row);
+        e2 = error << 1;
 
-    // handle positive/negative gradient
-    ystep = (start_pos.row < end_pos.row)? 1 : -1;
-
-    for (cursor.column = start_pos.column, cursor.row = start_pos.row; cursor.column <= end_pos.column; cursor.column ++)
-    {
-        ///////////////////////////////
-        // handle the axes swap that we did earlier for steep lines.
-        if (steep)
+        if (e2 >= row_interval)
         {
-            steep_cursor.column = cursor.row;
-            steep_cursor.row = cursor.column;
-            write_pixel (&steep_cursor, colour);
-        }
-        else
-        {
-            write_pixel (&cursor, colour);
+            if (cursor.column == end->column)
+                break;
+
+            error += row_interval;
+            cursor.column += column_step;
         }
 
-        err -= dy;
-
-        if (err < 0)
+        if (e2 <= column_interval)
         {
-            cursor.row += ystep;
-            err += dx;
+            if (cursor.row == end->row)
+                break;
+
+            error += column_interval;
+            cursor.row += row_step;
         }
     }
 }
