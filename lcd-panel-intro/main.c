@@ -123,7 +123,7 @@ demo_triangles (void)
 demo_lines (void)
 {
     vector_t start_point, end_point;
-    int current_colour = 1;
+    uint16_t colour = 0x00FF;
 
     start_point.column = SCREEN_COLUMNS >> 1;
     start_point.row = SCREEN_ROWS >> 1;
@@ -131,32 +131,20 @@ demo_lines (void)
     end_point.row = 0;
 
     for (end_point.row = 0; end_point.row < SCREEN_ROWS; end_point.row += 5)
-    {
-        write_line (&start_point, &end_point, colours_list [current_colour]);
-        current_colour = (++ current_colour < NUM_COLOURS) ? current_colour : 1;
-    }
+        write_line (&start_point, &end_point, colour += 0x0700);
 
     for (end_point.column = 0; end_point.column < SCREEN_COLUMNS; end_point.column += 5)
-    {
-        write_line (&start_point, &end_point, colours_list [current_colour]);
-        current_colour = (++ current_colour < NUM_COLOURS) ? current_colour : 1;
-    }
+        write_line (&start_point, &end_point, colour += 0x0700);
 
     for (; end_point.row > 0; end_point.row -= 5)
-    {
-        write_line (&start_point, &end_point, colours_list [current_colour]);
-        current_colour = (++ current_colour < NUM_COLOURS) ? current_colour : 1;
-    }
+        write_line (&start_point, &end_point, colour += 0x0700);
 
     // Just in case the above loop leaves the row index as a negative number,
     // reset the row to zero.
     end_point.row = 0;
 
     for (; end_point.column > 0; end_point.column -= 5)
-    {
-        write_line (&start_point, &end_point, colours_list [current_colour]);
-        current_colour = (++ current_colour < NUM_COLOURS) ? current_colour : 1;
-    }
+        write_line (&start_point, &end_point, colour += 0x0700);
 
     // clear the screen.
     lcd_fill_colour (colours_list [0]);
