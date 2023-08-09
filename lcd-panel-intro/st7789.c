@@ -46,7 +46,7 @@ static void spi_write16 (uint16_t data);
  *  This list of commands is borrowed from the Adafruit ST7789 Arduino library
  *  which was written by Limor Fried/Ladyada.
  */
-static const uint8_t PROGMEM st7789_init_cmds [] = {
+static const uint8_t st7789_init_cmds [] = {
     9,                          // 9 commands.
     SWRESET, CMD_DELAY, 150,    // software reset, 150 ms delay
     SLPOUT, CMD_DELAY, 10,      // out of sleep mode, 10 ms delay
