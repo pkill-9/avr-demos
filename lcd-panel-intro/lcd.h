@@ -36,6 +36,7 @@
 
 #define SCREEN_ROWS             320
 #define SCREEN_COLUMNS          240
+#define SCREEN_PIXELS           76800
 
 
 void lcd_init (void);

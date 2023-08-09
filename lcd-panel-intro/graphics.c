@@ -28,11 +28,7 @@ lcd_fill_colour (colour)
     top.column = SCREEN_COLUMNS - 1;
 
     set_display_window (&origin, &top);
-
-    for (int i = 0; i < SCREEN_ROWS; i ++)
-    {
-        write_colour (colour, SCREEN_COLUMNS);
-    }
+    write_colour (colour, SCREEN_PIXELS);
 }
 
 /********************************************************************/
