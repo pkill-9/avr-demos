@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "lcd.h"
+#include "graphics.h"
 #include "vectors.h"
 #include "utils.h"
 
