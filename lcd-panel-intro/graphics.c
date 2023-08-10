@@ -165,6 +165,10 @@ write_pixel (position, colour)
     const vector_t *position;
     uint16_t colour;
 {
+    // check that the coordinates are within the limits of the screen.
+    if (position->column > SCREEN_COLUMNS || position->row > SCREEN_ROWS)
+        return;
+
     set_display_window (position, position);
     write_colour (colour, 1);
 }

@@ -40,32 +40,49 @@ const uint16_t colours_list [] = {
 
 static void demo_lines (void);
 static void demo_triangles (void);
+static void demo_circles (void);
 
 /********************************************************************/
 
     int
 main (void)
 {
-    vector_t center;
-
-    center.row = SCREEN_ROWS >> 1;
-    center.column = SCREEN_COLUMNS >> 1;
-
     lcd_init ();
 
     lcd_fill_colour (colours_list [0]);
 
     while (1)
     {
-        //demo_lines ();
-        //demo_triangles ();
+        demo_lines ();
+        demo_triangles ();
+        demo_circles ();
 
         // clear the screen and start again.
-        //lcd_fill_colour (colours_list [0]);
-        draw_circle (&center, 80, COLOUR_CYAN);
+        lcd_fill_colour (colours_list [0]);
     }
 
     return 0;
+}
+
+/********************************************************************/
+
+/**
+ *  Draw a series of concentric circles
+ */
+    static void
+demo_circles (void)
+{
+    vector_t center;
+    uint16_t colour = 0x00FF;
+
+    // center is at half the maximum rows/cols
+    center.row = SCREEN_ROWS >> 1;
+    center.column = SCREEN_COLUMNS >> 1;
+
+    for (int radius = 10; radius < 200; radius += 6)
+        draw_circle (&center, radius, colour += 0x0700);
+
+    lcd_fill_colour (0x0000);
 }
 
 /********************************************************************/
