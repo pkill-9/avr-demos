@@ -45,17 +45,23 @@ static void demo_triangles (void);
     int
 main (void)
 {
+    vector_t center;
+
+    center.row = SCREEN_ROWS >> 1;
+    center.column = SCREEN_COLUMNS >> 1;
+
     lcd_init ();
 
     lcd_fill_colour (colours_list [0]);
 
     while (1)
     {
-        demo_lines ();
-        demo_triangles ();
+        //demo_lines ();
+        //demo_triangles ();
 
         // clear the screen and start again.
-        lcd_fill_colour (colours_list [0]);
+        //lcd_fill_colour (colours_list [0]);
+        draw_circle (&center, 80, COLOUR_CYAN);
     }
 
     return 0;

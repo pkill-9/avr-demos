@@ -53,6 +53,52 @@ draw_triangle (a, b, c, colour)
 /********************************************************************/
 
 /**
+ *  Draw a circle with the center at the specified coordinates and a specified
+ *  radius.
+ *
+ *  This is an implementation of Bresenham's algorithm for circles.
+ */
+    void
+draw_circle (center, radius, colour)
+    const vector_t *center;
+    int16_t radius;
+    uint16_t colour;
+{
+    int16_t column = -1 * radius, row = 0, error = 2 - 2 * radius;
+    vector_t cursor;
+
+    do
+    {
+        cursor.column = center->column - column;
+        cursor.row = center->row + row;
+        write_pixel (&cursor, colour);
+
+        cursor.column = center->column - row;
+        cursor.row = center->row - column;
+        write_pixel (&cursor, colour);
+
+        cursor.column = center->column + column;
+        cursor.row = center->row - row;
+        write_pixel (&cursor, colour);
+
+        cursor.column = center->column + row;
+        cursor.row = center->row + column;
+        write_pixel (&cursor, colour);
+
+        radius = error;
+
+        if (radius <= row)
+            error += (++ row) * 2 + 1;
+
+        if (radius > column || error > row)
+            error += (++ column) * 2 + 1;
+    }
+    while (column < 0);
+}
+
+/********************************************************************/
+
+/**
  *  Print a line on the LCD panel from the start coordinate to the end, with
  *  the line coloured with the specified 16 bit value (RGB-565). This function
  *  does not change the background colour of the panel. If the line crosses
