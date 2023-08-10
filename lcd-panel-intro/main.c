@@ -52,7 +52,7 @@ main (void)
     while (1)
     {
         demo_lines ();
-        //demo_triangles ();
+        demo_triangles ();
 
         // clear the screen and start again.
         lcd_fill_colour (colours_list [0]);
@@ -69,48 +69,55 @@ main (void)
     static void
 demo_triangles (void)
 {
-    /*
     vector_t a, b, c;
-    uint8_t current_colour = 0;
+    uint16_t colour = 0x00FF;
 
+    for (int16_t column = 0; column <= SCREEN_COLUMNS; column += 12)
+    {
+        a.column = column;
+        a.row = 0;
+        b.column = 0;
+        b.row = SCREEN_ROWS - column * 4 / 3;
+        c.column = SCREEN_COLUMNS - column;
+        c.row = SCREEN_ROWS;
+        draw_triangle (&a, &b, &c, colour += 0x0700);
+    }
+
+    for (int16_t column = 0; column < SCREEN_COLUMNS; column += 12)
+    {
+        a.column = SCREEN_COLUMNS;
+        a.row = column * 4 / 3;
+        b.column = 0;
+        b.row = SCREEN_ROWS - column * 4 / 3;
+        c.column = column;
+        c.row = 0;
+        draw_triangle (&a, &b, &c, colour += 0x0700);
+    }
+
+    for (int16_t column = 0; column < SCREEN_COLUMNS; column += 12)
+    {
+        a.column = SCREEN_COLUMNS;
+        a.row = column * 4 / 3;
+        b.column = column;
+        b.row = 0;
+        c.column = SCREEN_COLUMNS - column;
+        c.row = SCREEN_ROWS;
+        draw_triangle (&a, &b, &c, colour += 0x0700);
+    }
+
+    for (int16_t column = 0; column < SCREEN_COLUMNS; column += 12)
+    {
+        a.column = 0;
+        a.row = SCREEN_ROWS - column * 4 / 3;
+        b.column = SCREEN_COLUMNS;
+        b.row = column * 4 / 3;
+        c.column = SCREEN_COLUMNS - column;
+        c.row = SCREEN_ROWS;
+        draw_triangle (&a, &b, &c, colour += 0x0700);
+    }
+
+    // clear the screen.
     lcd_fill_colour (colours_list [0]);
-
-    for (int16_t i = 0; i <= SCREEN_COLUMNS; i += 24)
-    {
-        a.x = i;
-        a.y = 0;
-        b.x = 0;
-        b.y = SCREEN_ROWS - i;
-        c.x = SCREEN_COLUMNS - i;
-        c.y = SCREEN_ROWS;
-        draw_triangle (&a, &b, &c, colours_list [current_colour]);
-        current_colour = (++ current_colour > NUM_COLOURS)? 1 : current_colour;
-    }
-
-    for (int16_t i = 0; i < SCREEN_COLUMNS; i += 24)
-    {
-        a.x = SCREEN_ROWS;
-        a.y = i * 4 / 3;
-        b.x = 0;
-        b.y = SCREEN_COLUMNS - i * 4 / 3;
-        c.x = i;
-        c.y = 0;
-        draw_triangle (&a, &b, &c, colours_list [current_colour]);
-        current_colour = (++ current_colour > NUM_COLOURS)? 1 : current_colour;
-    }
-
-    for (int16_t i = 0; i < SCREEN_COLUMNS; i += 24)
-    {
-        a.x = SCREEN_ROWS;
-        a.y = i * 4 / 3;
-        b.x = i;
-        b.y = 0;
-        c.x = SCREEN_ROWS - i;
-        c.y = SCREEN_COLUMNS;
-        draw_triangle (&a, &b, &c, colours_list [current_colour]);
-        current_colour = (++ current_colour > NUM_COLOURS)? 1 : current_colour;
-    }
-    */
 }
 
 /********************************************************************/
