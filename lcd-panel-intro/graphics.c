@@ -13,6 +13,10 @@
 
 /********************************************************************/
 
+static void put_circle_pixels (const vector_t *center, int16_t column_offset, int16_t row_offset, uint16_t colour, char quadrants);
+
+/********************************************************************/
+
 /**
  *  Fill the entire panel with a given colour, erasing any other graphics
  *  previously on the display.
@@ -66,25 +70,10 @@ draw_circle (center, radius, colour)
     uint16_t colour;
 {
     int16_t column = -1 * radius, row = 0, error = 2 - 2 * radius;
-    vector_t cursor;
 
     do
     {
-        cursor.column = center->column - column;
-        cursor.row = center->row + row;
-        write_pixel (&cursor, colour);
-
-        cursor.column = center->column - row;
-        cursor.row = center->row - column;
-        write_pixel (&cursor, colour);
-
-        cursor.column = center->column + column;
-        cursor.row = center->row - row;
-        write_pixel (&cursor, colour);
-
-        cursor.column = center->column + row;
-        cursor.row = center->row + column;
-        write_pixel (&cursor, colour);
+        put_circle_pixels (center, column, row, colour, 0x0F);
 
         radius = error;
 
@@ -95,6 +84,49 @@ draw_circle (center, radius, colour)
             error += (++ column) * 2 + 1;
     }
     while (column < 0);
+}
+
+/********************************************************************/
+
+/**
+ *  Write the pixels for a circle.
+ */
+    static void
+put_circle_pixels (center, column_offset, row_offset, colour, quadrants)
+    const vector_t *center;
+    int16_t column_offset, row_offset;
+    uint16_t colour;
+    char quadrants;
+{
+    vector_t cursor;
+
+    if (quadrants & 0x01)
+    {
+        cursor.column = center->column - column_offset;
+        cursor.row = center->row + row_offset;
+        write_pixel (&cursor, colour);
+    }
+
+    if (quadrants & 0x02)
+    {
+        cursor.column = center->column - row_offset;
+        cursor.row = center->row - column_offset;
+        write_pixel (&cursor, colour);
+    }
+
+    if (quadrants & 0x04)
+    {
+        cursor.column = center->column + column_offset;
+        cursor.row = center->row - row_offset;
+        write_pixel (&cursor, colour);
+    }
+
+    if (quadrants & 0x08)
+    {
+        cursor.column = center->column + row_offset;
+        cursor.row = center->row + column_offset;
+        write_pixel (&cursor, colour);
+    }
 }
 
 /********************************************************************/
