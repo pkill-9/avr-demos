@@ -34,9 +34,9 @@
 #define COLOUR_PINK             0xFE19
 #define COLOUR_SKY_BLUE         0x867D
 
-#define SCREEN_ROWS             320
-#define SCREEN_COLUMNS          240
-#define SCREEN_PIXELS           76800
+#define SCREEN_ROWS             480
+#define SCREEN_COLUMNS          320
+#define SCREEN_PIXELS           153600
 
 
 void lcd_init (void);
