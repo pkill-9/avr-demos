@@ -2,6 +2,7 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "uart.h"
 
@@ -115,6 +116,66 @@ uart_init (baud_rate)
 
     // enable interrupts now that configuration is done.
     sei ();
+}
+
+/********************************************************************/
+
+/**
+ *  Formatted printing over UART serial.
+ */
+    int
+uart_printf (const char *format, ...)
+{
+    va_list args;
+    const char *string_arg;
+    int integer_arg;
+
+    va_start (args, format);
+
+    // Start printing the message, which will stop at the first format.
+    transmit_string (format);
+
+    /////////////////////////////////////////////////////////////////
+    // Step through the format string and find any number codes to print
+    //
+    for (const char *current = format; *current != '\0'; current ++)
+    {
+        // Skip any char that isn't a % (format specifier)
+        if (*current != '%')
+            continue;
+
+        // Check if the next character is also a %, which would indicate to
+        // print a literal % sign, which we leave to the printing function
+        if (*(++ current) == '%')
+            continue;
+
+        // handle the format code.
+        switch (*current)
+        {
+        case 'd':
+            integer_arg = va_arg (args, int);
+            transmit_int (integer_arg);
+            break;
+
+        case 'x':
+            break;
+
+        case 's':
+            string_arg = va_arg (args, const char *);
+            transmit_string (string_arg);
+            break;
+
+        default:
+            // invalid or unsupported format.
+            break;
+        }
+
+        transmit_string (++ current);
+    }
+
+    va_end (args);
+
+    return 0;
 }
 
 /********************************************************************/
