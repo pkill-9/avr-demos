@@ -10,9 +10,12 @@
 #include <string.h>
 #include <stdint.h>
 
+#define DECIMAL     10
+#define HEX         0x10
+
 void uart_init (unsigned long baud_rate);
 size_t transmit_string (const char *message);
-size_t transmit_int (int value);
+size_t transmit_int (int value, int base);
 int uart_printf (const char *format, ...);
 
 char uart_getchar (void);

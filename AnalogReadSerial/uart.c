@@ -40,9 +40,11 @@ static struct queue_item *free_list;
 
 // global int used as a mask to select the next digit to print.
 static volatile int digit_mask;
+static volatile int shift_bits;
 
 // This string is used to map a digit to a character
 static const char *digit_map = "0123456789ABCDEF";
+static const char *hexadecimal_digits_map = "0123456789ABCDEF";
 
 // variable to hold a byte received from the UART hardware, and a flag variable
 // tp indicate that data was received.
@@ -54,6 +56,7 @@ static volatile uint8_t got_char;
 static struct queue_item *allocate_item (void);
 static int string_transmit_handler (union message_data *data);
 static int integer_transmit_handler (union message_data *data);
+static int hexadecimal_transmit_handler (union message_data *data);
 static void enqueue (struct queue_item *item);
 static struct queue_item *dequeue (void);
 
@@ -154,10 +157,12 @@ uart_printf (const char *format, ...)
         {
         case 'd':
             integer_arg = va_arg (args, int);
-            transmit_int (integer_arg);
+            transmit_int (integer_arg, DECIMAL);
             break;
 
         case 'x':
+            integer_arg = va_arg (args, int);
+            transmit_int (integer_arg, HEX);
             break;
 
         case 's':
@@ -218,17 +223,32 @@ transmit_string (message)
  *  characters on the USART lines.
  */
     size_t
-transmit_int (value)
+transmit_int (value, base)
     int value;
+    int base;
 {
-    struct queue_item *next_item = allocate_item ();
+    struct queue_item *next_item;
+
+    if (base == HEX)
+        transmit_string ("0x");
+
+    next_item = allocate_item ();
 
     if (next_item == NULL)
         return 0;
 
     // add the transmit_int message to the end of the queue.
     next_item->data.number = value;
-    next_item->transmit_function = &(integer_transmit_handler);
+
+    if (base == HEX)
+    {
+        next_item->transmit_function = &(hexadecimal_transmit_handler);
+    }
+    else
+    {
+        next_item->transmit_function = &(integer_transmit_handler);
+    }
+
     enqueue (next_item);
 
     return sizeof (int);
@@ -389,6 +409,19 @@ string_transmit_handler (data)
     if (*(data->text) == '\0')
         return 1;
 
+    // Stop if we've reached a printf format sequence.
+    if (*(data->text) == '%')
+    {
+        data->text ++;
+
+        // Check that it isn't a '%%' sequence
+        if (*(data->text) != '%' || *(data->text) == '\0')
+            return 1;
+
+        // if it was a literal % sign, we continue on to the regular logic
+        // below to transmit the char over the uart.
+    }
+
     // pass the next char to the USART hardware by writing to the UDR0
     // register and advance the string to the next char.
     UDR0 = *(data->text);
@@ -448,6 +481,37 @@ integer_transmit_handler (data)
     // convert the digit to a character, and store it in the USART data
     // register.
     UDR0 = digit_map [next_digit];
+
+    return (digit_mask == 0? 1 : 0);
+}
+
+/********************************************************************/
+
+/**
+ *  This function is the same concept as the above function to transmit an
+ *  integer, but instead of printing in base 10 form, print hexadecimal digits.
+ *  It is worth having a separate function for this, because hexadecimal
+ *  allows us to make a few simplifications compared to the base 10 code.
+ */
+    static int
+hexadecimal_transmit_handler (data)
+    union message_data *data;
+{
+    uint8_t next_digit;
+
+    // we will use the same digit mask variable as the integer function, but
+    // we will use it to select a group of 4 bits (one hex digit).
+    if (digit_mask == 0)
+    {
+        digit_mask = 0xF000;
+        shift_bits = 12;
+    }
+
+    next_digit = (data->number & digit_mask) >> shift_bits;
+    digit_mask >>= 4;
+    shift_bits -= 4;
+
+    UDR0 = hexadecimal_digits_map [next_digit];
 
     return (digit_mask == 0? 1 : 0);
 }
