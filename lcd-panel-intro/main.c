@@ -43,6 +43,9 @@ static void demo_lines (void);
 static void demo_triangles (void);
 static void demo_circles (void);
 
+static void select_full_display (void);
+static uint16_t rgb888_to_rgb565 (uint8_t red, uint8_t green, uint8_t blue);
+
 /********************************************************************/
 
     int
@@ -71,12 +74,45 @@ main (void)
     static void
 demo_fill (void)
 {
-    for (int i = 0; i < NUM_COLOURS; i ++)
+    vector_t pixel;
+    uint16_t colour;
+
+    select_full_display ();
+
+    for (pixel.row = 0; pixel.row < SCREEN_ROWS; pixel.row ++)
     {
-        lcd_fill_colour (colours_list [i]);
+        for (pixel.column = 0; pixel.column < SCREEN_COLUMNS; pixel.column ++)
+        {
+            colour = rgb888_to_rgb565 (pixel.column << 3, pixel.row << 3, pixel.column * pixel.row);
+            write_colour (colour, 1);
+        }
     }
 
     lcd_fill_colour (0x0000);
+}
+
+/********************************************************************/
+
+    static void
+select_full_display (void)
+{
+    vector_t origin, limit;
+    origin.row = 0;
+    origin.column = 0;
+    limit.row = SCREEN_ROWS - 1;
+    limit.column = SCREEN_COLUMNS - 1;
+
+    set_display_window (&origin, &limit);
+}
+
+/********************************************************************/
+
+    static uint16_t
+rgb888_to_rgb565 (red, green, blue)
+    uint8_t red, green, blue;
+{
+    uint16_t colour = ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
+    return colour;
 }
 
 /********************************************************************/
