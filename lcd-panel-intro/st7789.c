@@ -116,7 +116,11 @@ lcd_init (void)
 
     // Set the SPI CS pin to HIGH. Once we begin a transfer we will pull it
     // low.
-    PORTD |= 0x08 | 0x10;
+    PORTD |= 0x08;
+    PORTD &= ~0x10;
+    _delay_ms (200);
+    PORTD |= 0x10;
+    _delay_ms (200);
 
     display_init (ili9488_init_cmds);
 }
@@ -240,8 +244,27 @@ write_colour (colour, pixel_count)
     uint16_t colour;
     uint32_t pixel_count;
 {
+    uint8_t red, green, blue;
+
+    // get the red channel from the 16 bit colour and convert it to a 3 byte
+    // 18 bit colour.
+    red = colour >> 11;
+    green = (colour << 5) >> 10;
+    blue = colour & 0x001F;
+
+    red = (red << 1) | 0x01;
+    blue = (blue << 1) | 0x01;
+
+    red << 2;
+    green << 2;
+    blue << 2;
+
     for (uint32_t i = 0; i < pixel_count; i ++)
-        spi_write16 (colour);
+    {
+        spi_transfer_byte (red);
+        spi_transfer_byte (green);
+        spi_transfer_byte (blue);
+    }
 }
 
 /********************************************************************/

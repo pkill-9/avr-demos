@@ -66,7 +66,7 @@ void setup() {
   screen.setTextSize(2);
   screen.println(""); screen.println("");
   screen.println(" gdl library Test!"); 
-  delay(1000);
+  delay(10000);
 }
 
 
@@ -198,7 +198,6 @@ void loop(void){
   screen.print(F("              Complete!"));
 
   delay(60 * 1000L);
-  while(1);
   
 }
 

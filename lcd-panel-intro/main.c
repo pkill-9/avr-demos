@@ -38,6 +38,7 @@ const uint16_t colours_list [] = {
 
 /********************************************************************/
 
+static void demo_fill (void);
 static void demo_lines (void);
 static void demo_triangles (void);
 static void demo_circles (void);
@@ -53,15 +54,29 @@ main (void)
 
     while (1)
     {
+        demo_fill ();
         demo_lines ();
         demo_triangles ();
         demo_circles ();
-
-        // clear the screen and start again.
-        lcd_fill_colour (colours_list [0]);
     }
 
     return 0;
+}
+
+/********************************************************************/
+
+/**
+ *  Demo screen fill with solid colour
+ */
+    static void
+demo_fill (void)
+{
+    for (int i = 0; i < NUM_COLOURS; i ++)
+    {
+        lcd_fill_colour (colours_list [i]);
+    }
+
+    lcd_fill_colour (0x0000);
 }
 
 /********************************************************************/
@@ -79,7 +94,7 @@ demo_circles (void)
     center.row = SCREEN_ROWS >> 1;
     center.column = SCREEN_COLUMNS >> 1;
 
-    for (int radius = 10; radius < 200; radius += 6)
+    for (int radius = 10; radius < 290; radius += 6)
         draw_circle (&center, radius, colour += 0x0700);
 
     lcd_fill_colour (0x0000);
