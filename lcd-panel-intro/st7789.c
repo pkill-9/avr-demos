@@ -255,9 +255,9 @@ write_colour (colour, pixel_count)
     red = (red << 1) | 0x01;
     blue = (blue << 1) | 0x01;
 
-    red << 2;
-    green << 2;
-    blue << 2;
+    red <<= 2;
+    green <<= 2;
+    blue <<= 2;
 
     for (uint32_t i = 0; i < pixel_count; i ++)
     {
