@@ -40,8 +40,14 @@
 
 
 void lcd_init (void);
+void display_init (const uint8_t *cmd_list);
 void set_display_window (const vector_t *lower_left, const vector_t *upper_right);
 void write_colour (uint16_t colour, uint32_t pixel_count);
+void write_command (uint8_t cmd);
+
+void spi_transfer_byte (uint8_t message);
+void spi_write16 (uint16_t message);
+void spi_write32 (uint32_t message);
 
 
 #endif // _LCD_H
