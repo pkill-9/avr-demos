@@ -39,6 +39,48 @@ lcd_fill_colour (colour)
 /********************************************************************/
 
 /**
+ *  Draw a rectangle, outline only.
+ */
+    void
+draw_rectangle (ll, ur, colour)
+    const vector_t *ll;
+    const vector_t *ur;
+    uint16_t colour;
+{
+    vector_t ul, lr;
+
+    //////////////
+    // Derive the other two corners from the upper left and lower right.
+    //
+    ul.row = ur->row;
+    ul.column = ll->column;
+    lr.row = ll->row;
+    lr.column = ur->column;
+
+    write_line (&ul, ur, colour);
+    write_line (ll, &lr, colour);
+    write_line (&ul, ll, colour);
+    write_line (ur, &lr, colour);
+}
+
+/********************************************************************/
+
+/**
+ *  Draw a rectangle filled with solid colour.
+ */
+    void
+filled_rectangle (ll, ur, colour)
+    const vector_t *ll;
+    const vector_t *ur;
+    uint16_t colour;
+{
+    set_display_window (ll, ur);
+    write_colour (colour, (uint32_t) (ur->row - ll->row) * (ur->column - ll->column));
+}
+
+/********************************************************************/
+
+/**
  *  Draw a triangle, given the 3 vertex coordinates. Not filled with solid
  *  colour.
  */
