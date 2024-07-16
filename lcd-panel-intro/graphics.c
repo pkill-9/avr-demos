@@ -29,11 +29,11 @@ lcd_fill_colour (colour)
 
     origin.row = 0;
     origin.column = 0;
-    top.row = SCREEN_ROWS - 1;
-    top.column = SCREEN_COLUMNS - 1;
+    top.row = screen_rows - 1;
+    top.column = screen_columns - 1;
 
     set_display_window (&origin, &top);
-    write_colour (colour, SCREEN_PIXELS);
+    write_colour (colour, screen_pixels);
 }
 
 /********************************************************************/
@@ -198,7 +198,7 @@ write_pixel (position, colour)
     uint16_t colour;
 {
     // check that the coordinates are within the limits of the screen.
-    if (position->column > SCREEN_COLUMNS || position->row > SCREEN_ROWS)
+    if (position->column > screen_columns || position->row > screen_rows)
         return;
 
     set_display_window (position, position);

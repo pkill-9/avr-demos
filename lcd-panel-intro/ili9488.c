@@ -20,6 +20,15 @@
 
 /********************************************************************/
 
+/**
+ *  Global variables to define the screen dimensions and number of pixels.
+ */
+const uint16_t screen_rows = 480;
+const uint16_t screen_columns = 320;
+const uint32_t screen_pixels = 153600;
+
+/********************************************************************/
+
 static const uint8_t ili9488_init_cmds [] = {
     17,
     0xF7, 4, 0xA9, 0x51, 0x2C, 0x82,

@@ -34,9 +34,10 @@
 #define COLOUR_PINK             0xFE19
 #define COLOUR_SKY_BLUE         0x867D
 
-#define SCREEN_ROWS             480
-#define SCREEN_COLUMNS          320
-#define SCREEN_PIXELS           153600
+
+extern const uint16_t screen_rows;
+extern const uint16_t screen_columns;
+extern const uint32_t screen_pixels;
 
 
 void lcd_init (void);

@@ -30,6 +30,15 @@
 
 /********************************************************************/
 
+/**
+ *  Global variables to define the screen dimensions and number of pixels.
+ */
+const uint16_t screen_rows = 320;
+const uint16_t screen_columns = 240;
+const uint32_t screen_pixels = 76800;
+
+/********************************************************************/
+
 
 /**
  *  LCD PANEL INITIALISATION CMD SEQUENCE

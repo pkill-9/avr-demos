@@ -79,9 +79,9 @@ demo_fill (void)
 
     select_full_display ();
 
-    for (pixel.row = 0; pixel.row < SCREEN_ROWS; pixel.row ++)
+    for (pixel.row = 0; pixel.row < screen_rows; pixel.row ++)
     {
-        for (pixel.column = 0; pixel.column < SCREEN_COLUMNS; pixel.column ++)
+        for (pixel.column = 0; pixel.column < screen_columns; pixel.column ++)
         {
             colour = rgb888_to_rgb565 (pixel.column << 3, pixel.row << 3, pixel.column * pixel.row);
             write_colour (colour, 1);
@@ -99,8 +99,8 @@ select_full_display (void)
     vector_t origin, limit;
     origin.row = 0;
     origin.column = 0;
-    limit.row = SCREEN_ROWS - 1;
-    limit.column = SCREEN_COLUMNS - 1;
+    limit.row = screen_rows - 1;
+    limit.column = screen_columns - 1;
 
     set_display_window (&origin, &limit);
 }
@@ -127,8 +127,8 @@ demo_circles (void)
     uint16_t colour = 0x00FF;
 
     // center is at half the maximum rows/cols
-    center.row = SCREEN_ROWS >> 1;
-    center.column = SCREEN_COLUMNS >> 1;
+    center.row = screen_rows >> 1;
+    center.column = screen_columns >> 1;
 
     for (int radius = 10; radius < 290; radius += 6)
         draw_circle (&center, radius, colour += 0x0700);
@@ -147,47 +147,47 @@ demo_triangles (void)
     vector_t a, b, c;
     uint16_t colour = 0x00FF;
 
-    for (int16_t column = 0; column <= SCREEN_COLUMNS; column += 12)
+    for (int16_t column = 0; column <= screen_columns; column += 12)
     {
         a.column = column;
         a.row = 0;
         b.column = 0;
-        b.row = SCREEN_ROWS - column * 4 / 3;
-        c.column = SCREEN_COLUMNS - column;
-        c.row = SCREEN_ROWS;
+        b.row = screen_rows - column * 4 / 3;
+        c.column = screen_columns - column;
+        c.row = screen_rows;
         draw_triangle (&a, &b, &c, colour += 0x0700);
     }
 
-    for (int16_t column = 0; column < SCREEN_COLUMNS; column += 12)
+    for (int16_t column = 0; column < screen_columns; column += 12)
     {
-        a.column = SCREEN_COLUMNS;
+        a.column = screen_columns;
         a.row = column * 4 / 3;
         b.column = 0;
-        b.row = SCREEN_ROWS - column * 4 / 3;
+        b.row = screen_rows - column * 4 / 3;
         c.column = column;
         c.row = 0;
         draw_triangle (&a, &b, &c, colour += 0x0700);
     }
 
-    for (int16_t column = 0; column < SCREEN_COLUMNS; column += 12)
+    for (int16_t column = 0; column < screen_columns; column += 12)
     {
-        a.column = SCREEN_COLUMNS;
+        a.column = screen_columns;
         a.row = column * 4 / 3;
         b.column = column;
         b.row = 0;
-        c.column = SCREEN_COLUMNS - column;
-        c.row = SCREEN_ROWS;
+        c.column = screen_columns - column;
+        c.row = screen_rows;
         draw_triangle (&a, &b, &c, colour += 0x0700);
     }
 
-    for (int16_t column = 0; column < SCREEN_COLUMNS; column += 12)
+    for (int16_t column = 0; column < screen_columns; column += 12)
     {
         a.column = 0;
-        a.row = SCREEN_ROWS - column * 4 / 3;
-        b.column = SCREEN_COLUMNS;
+        a.row = screen_rows - column * 4 / 3;
+        b.column = screen_columns;
         b.row = column * 4 / 3;
-        c.column = SCREEN_COLUMNS - column;
-        c.row = SCREEN_ROWS;
+        c.column = screen_columns - column;
+        c.row = screen_rows;
         draw_triangle (&a, &b, &c, colour += 0x0700);
     }
 
@@ -207,15 +207,15 @@ demo_lines (void)
     vector_t start_point, end_point;
     uint16_t colour = 0x00FF;
 
-    start_point.column = SCREEN_COLUMNS >> 1;
-    start_point.row = SCREEN_ROWS >> 1;
+    start_point.column = screen_columns >> 1;
+    start_point.row = screen_rows >> 1;
     end_point.column = 0;
     end_point.row = 0;
 
-    for (end_point.row = 0; end_point.row < SCREEN_ROWS; end_point.row += 5)
+    for (end_point.row = 0; end_point.row < screen_rows; end_point.row += 5)
         write_line (&start_point, &end_point, colour += 0x0700);
 
-    for (end_point.column = 0; end_point.column < SCREEN_COLUMNS; end_point.column += 5)
+    for (end_point.column = 0; end_point.column < screen_columns; end_point.column += 5)
         write_line (&start_point, &end_point, colour += 0x0700);
 
     for (; end_point.row > 0; end_point.row -= 5)
