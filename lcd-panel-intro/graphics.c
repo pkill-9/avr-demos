@@ -75,7 +75,7 @@ filled_rectangle (ll, ur, colour)
     uint16_t colour;
 {
     set_display_window (ll, ur);
-    write_colour (colour, (uint32_t) (ur->row - ll->row) * (ur->column - ll->column));
+    write_colour (colour, (uint32_t) (ur->row - ll->row + 1) * (ur->column - ll->column + 1));
 }
 
 /********************************************************************/

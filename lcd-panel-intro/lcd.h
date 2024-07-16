@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include "vectors.h"
+#include "utils.h"
 
 //
 // constants for 16 bit (RGB 565) colours
@@ -43,6 +44,7 @@ extern const uint32_t screen_pixels;
 void lcd_init (void);
 void display_init (const uint8_t *cmd_list);
 void set_display_window (const vector_t *lower_left, const vector_t *upper_right);
+bool is_within_screen (const vector_t *point);
 void write_colour (uint16_t colour, uint32_t pixel_count);
 void write_command (uint8_t cmd);
 

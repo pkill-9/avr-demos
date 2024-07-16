@@ -106,6 +106,24 @@ set_display_window (lower_left, upper_right)
 /********************************************************************/
 
 /**
+ *  Test if a point is within the screen area.
+ */
+    bool
+is_within_screen (point)
+    const vector_t *point;
+{
+    // Note: vector_t structure uses unsigned integers, so the row and column values
+    // cannot be less than zero.
+    //
+    if (point->row > screen_rows || point->column > screen_columns)
+        return false;
+
+    return true;
+}
+
+/********************************************************************/
+
+/**
  *  Accept data to be sent over the SPI bus.
  */
     void
@@ -150,4 +168,4 @@ spi_write16 (data)
 
 /********************************************************************/
 
-/** vim: set ts=r sw=4 et : */
+/** vim: set ts=4 sw=4 et : */

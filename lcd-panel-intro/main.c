@@ -20,6 +20,7 @@
 #include "lcd.h"
 #include "graphics.h"
 #include "vectors.h"
+#include "utils.h"
 
 /********************************************************************/
 
@@ -42,6 +43,7 @@ static void demo_fill (void);
 static void demo_lines (void);
 static void demo_triangles (void);
 static void demo_circles (void);
+static void demo_rectangles (bool filled);
 
 static void select_full_display (void);
 static uint16_t rgb888_to_rgb565 (uint8_t red, uint8_t green, uint8_t blue);
@@ -61,9 +63,53 @@ main (void)
         demo_lines ();
         demo_triangles ();
         demo_circles ();
+        demo_rectangles (false);
+        demo_rectangles (true);
     }
 
     return 0;
+}
+
+/********************************************************************/
+
+/**
+ *  Draw rectangles, outline only
+ */
+    static void
+demo_rectangles (filled)
+    bool filled;        // if true, draws filled rects.
+{
+    vector_t ll, ur;
+    uint16_t colour = COLOUR_PURPLE;
+
+    ////////////////////
+    // Set the starting corners
+    //
+    ll.row = 0;
+    ll.column = 0;
+    ur.row = screen_rows;
+    ur.column = screen_columns;
+
+    while (ll.row < ur.row && ll.column < ur.column)
+    {
+        if (filled)
+        {
+            filled_rectangle (&ll, &ur, colour);
+        }
+        else
+        {
+            draw_rectangle (&ll, &ur, colour);
+        }
+
+        ll.row += 5;
+        ll.column += 5;
+        ur.row -= 5;
+        ur.column -= 5;
+
+        colour += 0x0700;
+    }
+
+    lcd_fill_colour (0x0000);
 }
 
 /********************************************************************/
