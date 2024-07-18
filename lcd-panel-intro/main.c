@@ -17,6 +17,8 @@
  */
 
 
+#include <util/delay.h>
+
 #include "lcd.h"
 #include "graphics.h"
 #include "vectors.h"
@@ -42,6 +44,7 @@ const uint16_t colours_list [] = {
 static void demo_fill (void);
 static void demo_lines (void);
 static void demo_triangles (void);
+static void demo_concentric (void);
 static void demo_circles (void);
 static void demo_rectangles (bool filled);
 
@@ -62,6 +65,7 @@ main (void)
         demo_fill ();
         demo_lines ();
         demo_triangles ();
+        demo_concentric ();
         demo_circles ();
         demo_rectangles (false);
         demo_rectangles (true);
@@ -80,7 +84,7 @@ demo_rectangles (filled)
     bool filled;        // if true, draws filled rects.
 {
     vector_t ll, ur;
-    uint16_t colour = COLOUR_PURPLE;
+    uint16_t colour = 0x00FF;
 
     ////////////////////
     // Set the starting corners
@@ -163,11 +167,37 @@ rgb888_to_rgb565 (red, green, blue)
 
 /********************************************************************/
 
+    static void
+demo_circles (void)
+{
+    vector_t center;
+    uint8_t radius = 12;
+    uint16_t colour = COLOUR_PINK;
+
+    for (center.column = radius; center.column < screen_columns - radius; center.column += radius * 2)
+    {
+        for (center.row = radius; center.row < screen_rows - radius; center.row += radius * 2)
+        {
+            draw_circle (&center, radius, colour);
+
+            if (center.column == center.row || center.column == center.row + radius * 2)
+                fill_circle (&center, radius, colour);
+
+            colour += 0x0700;
+            _delay_ms (10);
+        }
+    }
+
+    lcd_fill_colour (0x0000);
+}
+
+/********************************************************************/
+
 /**
  *  Draw a series of concentric circles
  */
     static void
-demo_circles (void)
+demo_concentric (void)
 {
     vector_t center;
     uint16_t colour = 0x00FF;

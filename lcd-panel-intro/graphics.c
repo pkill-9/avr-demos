@@ -13,7 +13,9 @@
 
 /********************************************************************/
 
-static void put_circle_pixels (const vector_t *center, int16_t column_offset, int16_t row_offset, uint16_t colour, char quadrants);
+static void circle_helper (const vector_t *center, int16_t radius, uint16_t colour, bool filled);
+static void circle_pixels (const vector_t *center, int16_t column_offset, int16_t row_offset, 
+  uint16_t colour, char quadrants, bool filled);
 
 /********************************************************************/
 
@@ -111,11 +113,43 @@ draw_circle (center, radius, colour)
     int16_t radius;
     uint16_t colour;
 {
+    circle_helper (center, radius, colour, false);
+}
+
+/********************************************************************/
+
+/**
+ *  Draw a circle, filled in with solid colour.
+ */
+    void
+fill_circle (center, radius, colour)
+    const vector_t *center;
+    int16_t radius;
+    uint16_t colour;
+{
+    circle_helper (center, radius, colour, true);
+}
+
+/********************************************************************/
+
+/**
+ *  Draw a circle with the center at the specified coordinates and a specified
+ *  radius.
+ *
+ *  This is an implementation of Bresenham's algorithm for circles.
+ */
+    static void
+circle_helper (center, radius, colour, filled)
+    const vector_t *center;
+    int16_t radius;
+    uint16_t colour;
+    bool filled;
+{
     int16_t column = -1 * radius, row = 0, error = 2 - 2 * radius;
 
     do
     {
-        put_circle_pixels (center, column, row, colour, 0x0F);
+        circle_pixels (center, column, row, colour, 0x0F, filled);
 
         radius = error;
 
@@ -134,11 +168,12 @@ draw_circle (center, radius, colour)
  *  Write the pixels for a circle.
  */
     static void
-put_circle_pixels (center, column_offset, row_offset, colour, quadrants)
+circle_pixels (center, column_offset, row_offset, colour, quadrants, filled)
     const vector_t *center;
     int16_t column_offset, row_offset;
     uint16_t colour;
     char quadrants;
+    bool filled;
 {
     vector_t cursor;
 
@@ -146,29 +181,54 @@ put_circle_pixels (center, column_offset, row_offset, colour, quadrants)
     {
         cursor.column = center->column - column_offset;
         cursor.row = center->row + row_offset;
-        write_pixel (&cursor, colour);
+        filled? vertical_line (cursor.column, center->row, cursor.row, colour) : write_pixel (&cursor, colour);
     }
 
     if (quadrants & 0x02)
     {
         cursor.column = center->column - row_offset;
         cursor.row = center->row - column_offset;
-        write_pixel (&cursor, colour);
+        filled? vertical_line (cursor.column, cursor.row, center->row, colour) : write_pixel (&cursor, colour);
     }
 
     if (quadrants & 0x04)
     {
         cursor.column = center->column + column_offset;
         cursor.row = center->row - row_offset;
-        write_pixel (&cursor, colour);
+        filled? vertical_line (cursor.column, cursor.row, center->row, colour) : write_pixel (&cursor, colour);
     }
 
     if (quadrants & 0x08)
     {
         cursor.column = center->column + row_offset;
         cursor.row = center->row + column_offset;
-        write_pixel (&cursor, colour);
+        filled? vertical_line (cursor.column, center->row, cursor.row, colour) : write_pixel (&cursor, colour);
     }
+}
+
+/********************************************************************/
+
+/**
+ *  Draw a vertical line on the display. This function is more efficient than the
+ *  general line drawing function.
+ */
+    void
+vertical_line (column, start_row, end_row, colour)
+    uint16_t column, start_row, end_row, colour;
+{
+    vector_t line_start, line_end;
+    int16_t length;
+
+    // make sure length is a positive number
+    length = (end_row >= start_row)? (end_row - start_row) : (start_row - end_row);
+
+    line_start.row = (start_row <= end_row)? start_row : end_row;
+    line_start.column = column;
+    line_end.row = (end_row >= start_row)? end_row : start_row;
+    line_end.column = column;
+
+    set_display_window (&line_start, &line_end);
+    write_colour (colour, length);
 }
 
 /********************************************************************/
