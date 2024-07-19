@@ -13,7 +13,7 @@
 
 /********************************************************************/
 
-static void circle_helper (const vector_t *center, int16_t radius, uint16_t colour, bool filled);
+static void circle_helper (const vector_t *center, int16_t radius, uint8_t quadrants, uint16_t colour, bool filled);
 static void circle_pixels (const vector_t *center, int16_t column_offset, int16_t row_offset, 
   uint16_t colour, char quadrants, bool filled);
 
@@ -49,20 +49,49 @@ draw_rectangle (ll, ur, colour)
     const vector_t *ur;
     uint16_t colour;
 {
-    vector_t ul, lr;
+    vertical_line (ll->column, ll->row, ur->row, colour);
+    vertical_line (ur->column, ll->row, ur->row, colour);
+    horizontal_line (ll->row, ll->column, ur->column, colour);
+    horizontal_line (ur->row, ll->column, ur->column, colour);
+}
 
-    //////////////
-    // Derive the other two corners from the upper left and lower right.
-    //
-    ul.row = ur->row;
-    ul.column = ll->column;
-    lr.row = ll->row;
-    lr.column = ur->column;
+/********************************************************************/
 
-    write_line (&ul, ur, colour);
-    write_line (ll, &lr, colour);
-    write_line (&ul, ll, colour);
-    write_line (ur, &lr, colour);
+/**
+ *  Draw a rectangle with rounded corners
+ */
+    void
+draw_round_rectangle (ll, ur, radius, colour)
+    const vector_t *ll, *ur;
+    uint16_t radius;
+    uint16_t colour;
+{
+    int16_t width = (ll->column < ur->column)? ur->column - ll->column : ll->column - ur->column;
+    int16_t height = (ll->row < ur->row)? ur->row - ll->row : ll->row - ur->row;
+    int16_t max_radius = ((width < height)? width : height) / 2;
+    vector_t corner;
+
+    if (radius > max_radius)
+        radius = max_radius;
+
+    horizontal_line (ll->row, ll->column + radius, ur->column - radius, colour);
+    horizontal_line (ur->row, ll->column + radius, ur->column - radius, colour);
+    vertical_line (ll->column, ll->row + radius, ur->row - radius, colour);
+    vertical_line (ur->column, ll->row + radius, ur->row - radius, colour);
+
+    // now draw the corners.
+    corner.row = ll->row + radius;
+    corner.column = ll->column + radius;
+    circle_helper (&corner, radius, 0x04, colour, false);
+
+    corner.column = ur->column - radius;
+    circle_helper (&corner, radius, 0x08, colour, false);
+
+    corner.row = ur->row - radius;
+    circle_helper (&corner, radius, 0x01, colour, false);
+
+    corner.column = ll->column + radius;
+    circle_helper (&corner, radius, 0x02, colour, false);
 }
 
 /********************************************************************/
@@ -113,7 +142,7 @@ draw_circle (center, radius, colour)
     int16_t radius;
     uint16_t colour;
 {
-    circle_helper (center, radius, colour, false);
+    circle_helper (center, radius, 0x0F, colour, false);
 }
 
 /********************************************************************/
@@ -127,7 +156,7 @@ fill_circle (center, radius, colour)
     int16_t radius;
     uint16_t colour;
 {
-    circle_helper (center, radius, colour, true);
+    circle_helper (center, radius, 0x0F, colour, true);
 }
 
 /********************************************************************/
@@ -139,9 +168,10 @@ fill_circle (center, radius, colour)
  *  This is an implementation of Bresenham's algorithm for circles.
  */
     static void
-circle_helper (center, radius, colour, filled)
+circle_helper (center, radius, quadrants, colour, filled)
     const vector_t *center;
     int16_t radius;
+    uint8_t quadrants;
     uint16_t colour;
     bool filled;
 {
@@ -149,7 +179,7 @@ circle_helper (center, radius, colour, filled)
 
     do
     {
-        circle_pixels (center, column, row, colour, 0x0F, filled);
+        circle_pixels (center, column, row, colour, quadrants, filled);
 
         radius = error;
 
@@ -226,6 +256,29 @@ vertical_line (column, start_row, end_row, colour)
     line_start.column = column;
     line_end.row = (end_row >= start_row)? end_row : start_row;
     line_end.column = column;
+
+    set_display_window (&line_start, &line_end);
+    write_colour (colour, length);
+}
+
+/********************************************************************/
+
+/**
+ *  Draw a horizontal line without the overhead of the line drawing algorithm.
+ */
+    void
+horizontal_line (row, start_column, end_column, colour)
+    uint16_t row, start_column, end_column, colour;
+{
+    vector_t line_start, line_end;
+    int16_t length;
+
+    length = (end_column >= start_column)? (end_column - start_column) : (start_column - end_column);
+
+    line_start.row = row;
+    line_start.column = (start_column <= end_column)? start_column : end_column;
+    line_end.row = row;
+    line_end.column = (end_column >= start_column)? end_column : start_column;
 
     set_display_window (&line_start, &line_end);
     write_colour (colour, length);

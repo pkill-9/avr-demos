@@ -47,6 +47,7 @@ static void demo_triangles (void);
 static void demo_concentric (void);
 static void demo_circles (void);
 static void demo_rectangles (bool filled);
+static void demo_round_rectangles (void);
 
 static void select_full_display (void);
 static uint16_t rgb888_to_rgb565 (uint8_t red, uint8_t green, uint8_t blue);
@@ -68,7 +69,8 @@ main (void)
         demo_concentric ();
         demo_circles ();
         demo_rectangles (false);
-        demo_rectangles (true);
+        demo_round_rectangles ();
+        //demo_rectangles (true);
     }
 
     return 0;
@@ -111,6 +113,33 @@ demo_rectangles (filled)
         ur.column -= 5;
 
         colour += 0x0700;
+    }
+
+    lcd_fill_colour (0x0000);
+}
+
+/********************************************************************/
+
+    static void
+demo_round_rectangles (void)
+{
+    uint16_t colour = 0xF00F;
+    vector_t ll;
+    vector_t ur;
+
+    ll.row = 0;
+    ll.column = 0;
+    ur.row = screen_rows - 3;
+    ur.column = screen_columns - 3;
+
+    for (int i = 0; i <= 16; i ++)
+    {
+        draw_round_rectangle (&ll, &ur, 20, colour);
+        ll.row += 5;
+        ll.column += 5;
+        ur.row -= 5;
+        ur.column -= 5;
+        colour += 0x0100;
     }
 
     lcd_fill_colour (0x0000);
@@ -228,7 +257,7 @@ demo_triangles (void)
         a.column = column;
         a.row = 0;
         b.column = 0;
-        b.row = screen_rows - column * 4 / 3;
+        b.row = screen_rows - column * (screen_rows >> 4) / (screen_columns >> 4);
         c.column = screen_columns - column;
         c.row = screen_rows;
         draw_triangle (&a, &b, &c, colour += 0x0700);
@@ -237,9 +266,9 @@ demo_triangles (void)
     for (int16_t column = 0; column < screen_columns; column += 12)
     {
         a.column = screen_columns;
-        a.row = column * 4 / 3;
+        a.row = column * (screen_rows >> 4) / (screen_columns >> 4);
         b.column = 0;
-        b.row = screen_rows - column * 4 / 3;
+        b.row = screen_rows - column * (screen_rows >> 4) / (screen_columns >> 4);
         c.column = column;
         c.row = 0;
         draw_triangle (&a, &b, &c, colour += 0x0700);
@@ -248,7 +277,7 @@ demo_triangles (void)
     for (int16_t column = 0; column < screen_columns; column += 12)
     {
         a.column = screen_columns;
-        a.row = column * 4 / 3;
+        a.row = column * (screen_rows >> 4) / (screen_columns >> 4);
         b.column = column;
         b.row = 0;
         c.column = screen_columns - column;
@@ -259,9 +288,9 @@ demo_triangles (void)
     for (int16_t column = 0; column < screen_columns; column += 12)
     {
         a.column = 0;
-        a.row = screen_rows - column * 4 / 3;
+        a.row = screen_rows - column * (screen_rows >> 4) / (screen_columns >> 4);
         b.column = screen_columns;
-        b.row = column * 4 / 3;
+        b.row = column * (screen_rows >> 4) / (screen_columns >> 4);
         c.column = screen_columns - column;
         c.row = screen_rows;
         draw_triangle (&a, &b, &c, colour += 0x0700);
