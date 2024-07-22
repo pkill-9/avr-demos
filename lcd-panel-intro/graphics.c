@@ -96,6 +96,55 @@ draw_round_rectangle (ll, ur, radius, colour)
 
 /********************************************************************/
 
+    void
+filled_round_rectangle (ll, ur, radius, colour)
+    const vector_t *ll, *ur;
+    uint16_t radius;
+    uint16_t colour;
+{
+    int16_t width = (ll->column < ur->column)? ur->column - ll->column : ll->column - ur->column;
+    int16_t height = (ll->row < ur->row)? ur->row - ll->row : ll->row - ur->row;
+    int16_t max_radius = ((width < height)? width : height) / 2;
+    vector_t corner, lower, upper;
+
+    if (radius > max_radius)
+        radius = max_radius;
+
+    // Fill in the central rectangular area.
+    lower.row = ll->row;
+    lower.column = ll->column + radius;
+    upper.row = ur->row;
+    upper.column = ur->column - radius;
+    filled_rectangle (&lower, &upper, colour);
+
+    // fill in the two side areas
+    lower.row = ll->row + radius;
+    lower.column = ll->column;
+    upper.row = ur->row - radius;
+    upper.column = ll->column + radius;
+    filled_rectangle (&lower, &upper, colour);
+
+    lower.column = ur->column - radius;
+    upper.column = ur->column;
+    filled_rectangle (&lower, &upper, colour);
+
+    // now draw the corners.
+    corner.row = ll->row + radius;
+    corner.column = ll->column + radius;
+    circle_helper (&corner, radius, 0x04, colour, true);
+
+    corner.column = ur->column - radius;
+    circle_helper (&corner, radius, 0x08, colour, true);
+
+    corner.row = ur->row - radius;
+    circle_helper (&corner, radius, 0x01, colour, true);
+
+    corner.column = ll->column + radius;
+    circle_helper (&corner, radius, 0x02, colour, true);
+}
+
+/********************************************************************/
+
 /**
  *  Draw a rectangle filled with solid colour.
  */

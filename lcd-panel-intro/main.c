@@ -48,6 +48,7 @@ static void demo_concentric (void);
 static void demo_circles (void);
 static void demo_rectangles (bool filled);
 static void demo_round_rectangles (void);
+static void demo_filled_round_rectangles (void);
 
 static void select_full_display (void);
 static uint16_t rgb888_to_rgb565 (uint8_t red, uint8_t green, uint8_t blue);
@@ -70,6 +71,7 @@ main (void)
         demo_circles ();
         demo_rectangles (false);
         demo_round_rectangles ();
+        demo_filled_round_rectangles ();
         //demo_rectangles (true);
     }
 
@@ -140,6 +142,43 @@ demo_round_rectangles (void)
         ur.row -= 5;
         ur.column -= 5;
         colour += 0x0100;
+    }
+
+    lcd_fill_colour (0x0000);
+}
+
+/********************************************************************/
+
+    static void
+demo_filled_round_rectangles (void)
+{
+    uint16_t colour = 0xF00F;
+    vector_t ll;
+    vector_t ur;
+
+    ll.row = 3;
+    ll.column = 3;
+    ur.row = screen_rows - 3;
+    ur.column = screen_columns - 3;
+
+    for (int i = 0; i <= 16; i += 2)
+    {
+        draw_round_rectangle (&ll, &ur, 20, colour);
+        ll.row += 5;
+        ll.column += 5;
+        ur.row -= 5;
+        ur.column -= 5;
+        colour += 0x0100;
+    }
+
+    for (int i = 0; i <= 16; i += 2)
+    {
+        filled_round_rectangle (&ll, &ur, 20, colour);
+        ll.row += 5;
+        ll.column += 5;
+        ur.row -= 5;
+        ur.column -= 5;
+        colour += 0x0500;
     }
 
     lcd_fill_colour (0x0000);

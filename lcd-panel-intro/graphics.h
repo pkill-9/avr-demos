@@ -16,6 +16,7 @@ void draw_circle (const vector_t *center, int16_t radius, uint16_t colour);
 void fill_circle (const vector_t *center, int16_t radius, uint16_t colour);
 void draw_rectangle (const vector_t *ll, const vector_t *ur, uint16_t colour);
 void draw_round_rectangle (const vector_t *ll, const vector_t *ur, uint16_t radius, uint16_t colour);
+void filled_round_rectangle (const vector_t *ll, const vector_t *ur, uint16_t radius, uint16_t colour);
 void filled_rectangle (const vector_t *ll, const vector_t *ur, uint16_t colour);
 
 #endif // _GRAPHICS_H
