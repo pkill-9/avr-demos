@@ -28,10 +28,6 @@ static volatile unsigned int conversion_results;
 // bits). This mask isolates our results_ready flag bit.
 #define RESULTS_READY_MASK          0x8000
 
-// function to call with the conversion results, in the case of conversions
-// triggered by timer interrupt
-static void (*results_callback) (unsigned int results);
-
 
 /********************************************************************/
 
@@ -95,40 +91,6 @@ analog_read (channel)
 /********************************************************************/
 
 /**
- *  Set the ADC to perform regular conversions, triggered by a timer overflow
- *  interrupt. This function will set up timer 1 (16 bit counter), with the
- *  given prescaler select bits. When it overflows, the ADC will convert the
- *  value from the specified channel, and will then invoke the callback
- *  function.
- */
-    void
-ad_convert_on_clock_irq (channel, prescaler, callback)
-    unsigned int channel;
-    uint8_t prescaler;
-    void (*callback) (unsigned int conversion_result);
-{
-    // Set the ADMUX register to indicate which channel we're reading from
-    ADMUX &= ~ADMUX_MASK;
-    ADMUX |= channel & ADMUX_MASK;
-
-    // Set up the ADC to be automatically triggered
-    ADCSRA |= ADCSRA_AUTO_TRIGGER;
-
-    // Set the auto-trigger source to timer 1 overflow.
-    ADCSRB &= ~ (0x07);
-    ADCSRB |= 0x06;
-
-    // Set up timer 1 with the specified prescaler bits, and enable the irq.
-    TCCR1B = (TCCR1B & 0xF8) | prescaler;
-    TIMSK1 |= 0x01;
-
-    // save the callback function.
-    results_callback = callback;
-}
-
-/********************************************************************/
-
-/**
  *  ADC complete interrupt handler.
  *
  *  Action to perform (in single shot mode) is to fetch the conversion results
@@ -142,21 +104,6 @@ ISR (ADC_vect)
 {
     conversion_results |= ADCL;
     conversion_results |= ADCH << 8;
-}
-
-/********************************************************************/
-
-/**
- *  Timer 1 overflow ISR.
- *
- *  This doesn't actually perform any action, but we have to have the ISR,
- *  because we need to enable the timer interrupt in order to have the ADC
- *  perform conversions automatically.
- */
-ISR (TIMER1_OVF_vect)
-{
-    if (results_callback != NULL)
-        results_callback (conversion_results);
 }
 
 /********************************************************************/

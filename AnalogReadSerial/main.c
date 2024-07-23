@@ -8,10 +8,6 @@
 
 /********************************************************************/
 
-static void transmit_results (unsigned int conversion_results);
-
-/********************************************************************/
-
 static volatile int refresh_results = 0;
 
 /********************************************************************/
@@ -37,9 +33,10 @@ main (void)
 {
     analog_init (0x01);
     uart_init (9600);
+    int value;
 
-    // Set the ADC to perform conversions triggered by the timer.
-    ad_convert_on_clock_irq (0x01, 0x04, &transmit_results);
+    TCCR1B = (TCCR1B & 0xF8) | 0x04;
+    TIMSK1 |= 0x01;
 
     // Enter an infinite sleep loop. Note that we will take the analog reading
     // in this loop, not the ISR, because the analog_read function will put
@@ -50,7 +47,8 @@ main (void)
     {
         if (refresh_results)
         {
-            analog_read (0);
+            value = analog_read (0);
+            uart_printf ("Got analog reading: %d\r\n", value);
             refresh_results = 0;
         }
 
@@ -63,11 +61,9 @@ main (void)
 
 /********************************************************************/
 
-    void
-transmit_results (conversion_results)
-    unsigned int conversion_results;
+ISR (TIMER1_OVF_vect)
 {
-    uart_printf ("Got analog reading: %x\r\n", conversion_results);
+    refresh_results = 1;
 }
 
 /********************************************************************/
