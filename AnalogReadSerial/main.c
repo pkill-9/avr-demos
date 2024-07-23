@@ -48,7 +48,7 @@ main (void)
         if (refresh_results)
         {
             value = analog_read (0);
-            uart_printf ("Got analog reading: %d\r\n", value);
+            uart_printf ("Got analog reading: %x\r\n", value);
             refresh_results = 0;
         }
 

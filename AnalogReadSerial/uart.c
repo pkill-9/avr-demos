@@ -39,8 +39,8 @@ static struct queue_item *head, *tail;
 static struct queue_item *free_list;
 
 // global int used as a mask to select the next digit to print.
-static volatile int digit_mask;
-static volatile int shift_bits;
+static volatile uint16_t digit_mask;
+static volatile uint16_t shift_bits;
 
 // This string is used to map a digit to a character
 static const char *digit_map = "0123456789ABCDEF";
